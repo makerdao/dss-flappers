@@ -21,7 +21,6 @@ interface FlapperLike {
 }
 
 interface VatLike {
-    function live() external view returns (uint256);
     function dai(address) external view returns (uint256);
     function move(address, address, uint256) external;
 }
