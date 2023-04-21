@@ -40,6 +40,10 @@ interface VowLike {
     function hump() external view returns (uint256);
 }
 
+interface EndLike {
+    function cage() external;
+}
+
 interface RouterLike {
     function getAmountOut(
         uint256 amountIn,
@@ -112,6 +116,7 @@ contract FlapperUniV2Test is Test {
 
     VatLike constant vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
     VowLike constant vow = VowLike(0xA950524441892A31ebddF91d3cEEFa04Bf454466);
+    EndLike constant end = EndLike(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
 
     uint256 constant WAD   = 1e18;
     uint256 constant RAY   = 1e27   ;
@@ -373,7 +378,7 @@ contract FlapperUniV2Test is Test {
         vow.flap();
     }
 
-    function testCage() public {
+    function testCageBalance() public {
         uint256 rad = vow.bump();
 
         vm.prank(address(vow));
@@ -389,6 +394,48 @@ contract FlapperUniV2Test is Test {
         assertEq(flapper.live(), 0);
         assertEq(vat.dai(address(flapper)), 0);
         assertEq(vat.dai(address(this)), rad);
+    }
+
+    function testCageNoBalance() public {
+        assertEq(flapper.live(), 1);
+        assertEq(vat.dai(address(flapper)), 0);
+
+        vm.expectEmit(false, false, false, true);
+        emit Cage(0);
+        flapper.cage(0);
+
+        assertEq(flapper.live(), 0);
+        assertEq(vat.dai(address(flapper)), 0);
+    }
+
+    function testCageThroughEndBalance() public {
+        uint256 rad = vow.bump();
+
+        vm.prank(address(vow));
+        vat.move(address(vow), address(flapper), rad);
+
+        assertEq(flapper.live(), 1);
+        assertEq(vat.dai(address(flapper)), rad);
+
+        vm.prank(PAUSE_PROXY);
+        vm.expectEmit(false, false, false, true, address(flapper));
+        emit Cage(rad);
+        end.cage();
+
+        assertEq(flapper.live(), 0);
+        assertEq(vat.dai(address(flapper)), 0);
+    }
+
+    function testCageThroughEndNoBalance() public {
+        assertEq(flapper.live(), 1);
+        assertEq(vat.dai(address(flapper)), 0);
+
+        vm.prank(PAUSE_PROXY);
+        vm.expectEmit(false, false, false, true, address(flapper));
+        emit Cage(0);
+        end.cage();
+
+        assertEq(flapper.live(), 0);
     }
 
     function testCageNotAuthed() public {
