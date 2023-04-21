@@ -41,7 +41,11 @@ interface VowLike {
 }
 
 interface RouterLike {
-    function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) external returns (uint256 amountOut);
+    function getAmountOut(
+        uint256 amountIn,
+        uint256 reserveIn,
+        uint256 reserveOut
+    ) external returns (uint256 amountOut);
 
     function swapExactTokensForTokens(
         uint256 amountIn,
@@ -62,6 +66,16 @@ interface RouterLike {
         uint256 deadline
     ) external returns (uint256 amountA, uint256 amountB, uint256 liquidity);
 
+    function removeLiquidity(
+        address tokenA,
+        address tokenB,
+        uint256 liquidity,
+        uint256 amountAMin,
+        uint256 amountBMin,
+        address to,
+        uint256 deadline
+    ) external returns (uint256 amountA, uint256 amountB);
+
 }
 
 interface GemLike {
@@ -72,7 +86,7 @@ interface GemLike {
 contract MockMedianizer {
     uint256 public price;
 
-    constructor(uint256 price_) {
+    function setPrice(uint256 price_) external {
         price = price_;
     }
 
@@ -112,11 +126,11 @@ contract FlapperUniV2Test is Test {
 
     function setUp() public {
 
-        medianizer = new MockMedianizer(727 * 1e18);
+        medianizer = new MockMedianizer();
 
         flapper = new FlapperUniV2(DAI_JOIN, MKR, address(medianizer), UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
         flapper.file("hop", 30 minutes);
-        flapper.file("want", WAD * 98 / 100);
+        flapper.file("want", WAD * 97 / 100);
         flapper.rely(address(vow));
 
         vm.startPrank(PAUSE_PROXY);
@@ -145,6 +159,7 @@ contract FlapperUniV2Test is Test {
         (uint256 reserveDai, ) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
         uint256 minimalDaiReserve = 280_000 * WAD;
         if (reserveDai < minimalDaiReserve) {
+            medianizer.setPrice(727 * WAD);
 
             // If there's no sufficient initial liquidity the price might be way off, need to first arb it
             uint256 small = 1e16;
@@ -153,6 +168,9 @@ contract FlapperUniV2Test is Test {
 
             // Inject initial liquidity
             topUpLiquidity(minimalDaiReserve - reserveDai);
+        } else {
+            // If there is initial liquidity, then the oracle price should be set to the current price
+            medianizer.setPrice(uniV2AmountOut(vow.bump() / RAY));
         }
     }
 
@@ -225,6 +243,15 @@ contract FlapperUniV2Test is Test {
         assertLt(initialDaiVow - vat.dai(address(vow)), 2 * vow.bump() * 11 / 10);
         assertEq(GemLike(DAI).balanceOf(address(flapper)), 0);
         assertEq(GemLike(MKR).balanceOf(address(flapper)), 0);
+    }
+
+    function testDefaultValues() public {
+        FlapperUniV2 f = new FlapperUniV2(DAI_JOIN, MKR, address(medianizer), UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
+        assertEq(f.hop(),  1 hours);
+        assertEq(f.want(), WAD);
+        assertEq(f.live(), 1);
+        assertEq(f.zzz(),  0);
+        assertEq(f.wards(address(this)), 1);
     }
 
     function testIllegalGemDecimals() public {
@@ -332,6 +359,20 @@ contract FlapperUniV2Test is Test {
         vow.flap();
     }
 
+    // Note: this should fail once the pool has significant liquidity from other sources
+    function testKickSlippageInsanity() public {
+        // Remove liquidity from the pool
+        uint256 lps = GemLike(UNIV2_DAI_MKR_PAIR).balanceOf(address(this));
+        GemLike(UNIV2_DAI_MKR_PAIR).approve(UNIV2_ROUTER, lps);
+        RouterLike(UNIV2_ROUTER).removeLiquidity(DAI, MKR, lps, 0, 0, address(this), block.timestamp);
+
+        // Make sure the trade slippage does not fail us
+        flapper.file("want", 0);
+
+        vm.expectRevert("FlapperUniV2/slippage-insanity");
+        vow.flap();
+    }
+
     function testCage() public {
         uint256 rad = vow.bump();
 
@@ -371,8 +412,9 @@ contract FlapperUniV2Test is Test {
         vm.expectEmit(false, false, false, false);
         emit Uncage();
         flapper.uncage();
-
         assertEq(flapper.live(), 1);
+
+        doKick();
     }
 
     function testUncageVatNotLive() public {
