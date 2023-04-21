@@ -19,6 +19,10 @@ pragma solidity ^0.8.16;
 import "forge-std/Test.sol";
 import { OracleWrapper } from "src/OracleWrapper.sol";
 
+interface DSValueLike {
+    function read() external view returns (bytes32);
+}
+
 contract MockMedianizer {
     uint256 public price;
     bool    public has = true;
@@ -39,7 +43,7 @@ contract MockMedianizer {
 
 contract OracleWrapperTest is Test {
     MockMedianizer public medianizer;
-    OracleWrapper  public oracleWrapper;
+    DSValueLike    public oracleWrapper;
 
     uint256 constant WAD   = 1e18;
 
@@ -48,7 +52,7 @@ contract OracleWrapperTest is Test {
         medianizer.setPrice(727 * WAD);
         medianizer.setHas(true);
 
-        oracleWrapper = new OracleWrapper(address(medianizer), 1800 * WAD);
+        oracleWrapper = DSValueLike(address(new OracleWrapper(address(medianizer), 1800 * WAD)));
     }
 
     function testRead() public {
