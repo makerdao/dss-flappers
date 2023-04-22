@@ -16,26 +16,30 @@
 
 pragma solidity ^0.8.16;
 
-interface DSValueLike {
+interface PipLike {
     function read() external view returns (bytes32);
 }
 
 contract OracleWrapper {
 
-    DSValueLike public immutable src;
-    uint256     public immutable gemsForSrcGem;  // [WAD]
+    PipLike public immutable pip;
+    address public immutable flapper;
+    uint256 public immutable gemsForPipGem;  // [WAD]
 
     constructor(
-        address _src,
-        uint256 _gemsForSrcGem
+        address _pip,
+        address _flapper,
+        uint256 _gemsForPipGem
     ) {
-        src           = DSValueLike(_src);
-        gemsForSrcGem = _gemsForSrcGem;
+        pip           = PipLike(_pip);
+        flapper       = _flapper;
+        gemsForPipGem = _gemsForPipGem;
     }
 
     uint256 internal constant WAD = 10 ** 18;
 
     function read() external view returns (bytes32) {
-        return bytes32(uint256(src.read()) * WAD / gemsForSrcGem);
+        require(msg.sender == flapper, "OracleWrapper/unauthorized-reader"); // preserve oracles whitelisting
+        return bytes32(uint256(pip.read()) * WAD / gemsForPipGem);
     }
 }

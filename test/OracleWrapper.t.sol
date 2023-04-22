@@ -19,7 +19,7 @@ pragma solidity ^0.8.16;
 import "forge-std/Test.sol";
 import { OracleWrapper } from "src/OracleWrapper.sol";
 
-interface DSValueLike {
+interface PipLike {
     function read() external view returns (bytes32);
 }
 
@@ -43,7 +43,7 @@ contract MockMedianizer {
 
 contract OracleWrapperTest is Test {
     MockMedianizer public medianizer;
-    DSValueLike    public oracleWrapper;
+    PipLike        public oracleWrapper;
 
     uint256 constant WAD   = 1e18;
 
@@ -52,16 +52,22 @@ contract OracleWrapperTest is Test {
         medianizer.setPrice(727 * WAD);
         medianizer.setHas(true);
 
-        oracleWrapper = DSValueLike(address(new OracleWrapper(address(medianizer), 1800 * WAD)));
+        oracleWrapper = PipLike(address(new OracleWrapper(address(medianizer), address(this), 1800 * WAD)));
     }
 
     function testRead() public {
         assertEq(oracleWrapper.read(), bytes32(727 * WAD / 1800)); // 0.40388889e+18
     }
 
-    function testReadRevert() public {
+    function testReadInvalidPrice() public {
         medianizer.setHas(false);
         vm.expectRevert();
+        oracleWrapper.read();
+    }
+
+    function testUnauthorizedReader() public {
+        vm.prank(address(123));
+        vm.expectRevert("OracleWrapper/unauthorized-reader");
         oracleWrapper.read();
     }
 }

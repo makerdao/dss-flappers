@@ -28,12 +28,16 @@ interface DaiJoinLike {
     function exit(address, uint256) external;
 }
 
+interface SpotterLike {
+    function par() external view returns (uint256);
+}
+
 interface GemLike {
     function decimals() external view returns (uint8);
     function approve(address, uint256) external;
 }
 
-interface DSValueLike {
+interface PipLike {
     function read() external view returns (bytes32);
 }
 
@@ -67,14 +71,15 @@ contract FlapperUniV2 {
     mapping (address => uint256) public wards;
 
     uint256 public live;  // Active Flag
-    uint256 public hop;   // [Seconds]    Time between sales
+    uint256 public hop;   // [Seconds]    Time between kicks
     uint256 public zzz;   // [Timestamp]  Last kick
     uint256 public want;  // [WAD]        Relative multiplier of the reference price to insist on in the swap.
                           //              For example: 0.98 * WAD allows 2% worse price than the reference.
 
     VatLike     public immutable vat;
     DaiJoinLike public immutable daiJoin;
-    DSValueLike public immutable src;
+    SpotterLike public immutable spotter;
+    PipLike     public immutable pip;
     address     public immutable dai;
     address     public immutable gem;
     address     public immutable receiver;
@@ -88,19 +93,20 @@ contract FlapperUniV2 {
     event File(bytes32 indexed what, uint256 data);
     event Kick(uint256 wlot, uint256 bought, uint256 wad, uint256 liquidity);
     event Cage(uint256 rad);
-    event Uncage();
 
     constructor(
         address _daiJoin,
+        address _spotter,
         address _gem,
-        address _src,
+        address _pip,
         address _router,
         address _pair,
         address _receiver
     ) {
         daiJoin = DaiJoinLike(_daiJoin);
         vat     = VatLike(daiJoin.vat());
-        src     = DSValueLike(_src);
+        spotter = SpotterLike(_spotter);
+        pip     = PipLike(_pip);
 
         dai = daiJoin.dai();
         gem = _gem;
@@ -158,9 +164,10 @@ contract FlapperUniV2 {
         _path[0] = dai;
         _path[1] = gem;
 
+        uint256 _ref = _wlot * WAD / (uint256(pip.read()) * RAY / spotter.par());
         uint256[] memory _amounts = router.swapExactTokensForTokens({
             amountIn:     _wlot,
-            amountOutMin: (_wlot * WAD / uint256(src.read())) * want / WAD,
+            amountOutMin: _ref * want / WAD,
             path:         _path,
             to:           address(this),
             deadline:     block.timestamp
@@ -168,8 +175,8 @@ contract FlapperUniV2 {
         uint256 _bought = _amounts[1];
 
         (uint256 _reserveA, uint256 _reserveB, ) = pair.getReserves();
-        uint256 _wad = daiFirst ? _bought * _reserveA / _reserveB :
-                                  _bought * _reserveB / _reserveA;
+        uint256 _wad = daiFirst ? _bought * _reserveA / _reserveB
+                                : _bought * _reserveB / _reserveA;
         require(_wad < _wlot * 110 / 100, "FlapperUniV2/slippage-insanity");
 
         vat.move(msg.sender, address(this), _wad * RAY);
@@ -190,15 +197,8 @@ contract FlapperUniV2 {
         return 0;
     }
 
-    function cage(uint256 rad) external auth {
+    function cage(uint256) external auth {
         live = 0;
-        vat.move(address(this), msg.sender, rad);
-        emit Cage(rad);
-    }
-
-    function uncage() external auth {
-        require(vat.live() == 1, "FlapperUniV2/vat-not-live");
-        live = 1;
-        emit Uncage();
+        emit Cage(0);
     }
 }

@@ -106,6 +106,7 @@ contract FlapperUniV2Test is Test {
     MockMedianizer public medianizer;
 
     address constant DAI_JOIN           = 0x9759A6Ac90977b93B58547b4A71c78317f391A28;
+    address constant SPOT               = 0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3;
     address constant DAI                = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     address constant MKR                = 0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2;
     address constant PAUSE_PROXY        = 0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB;
@@ -127,13 +128,11 @@ contract FlapperUniV2Test is Test {
     event File(bytes32 indexed what, uint256 data);
     event Kick(uint256 wlot, uint256 bought, uint256 wad, uint256 liquidity);
     event Cage(uint256 rad);
-    event Uncage();
 
     function setUp() public {
-
         medianizer = new MockMedianizer();
 
-        flapper = new FlapperUniV2(DAI_JOIN, MKR, address(medianizer), UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
+        flapper = new FlapperUniV2(DAI_JOIN, SPOT, MKR, address(medianizer), UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
         flapper.file("hop", 30 minutes);
         flapper.file("want", WAD * 97 / 100);
         flapper.rely(address(vow));
@@ -161,13 +160,13 @@ contract FlapperUniV2Test is Test {
         }
 
         // Add initial liquidity if needed
+        uint256 small = 1e16;
         (uint256 reserveDai, ) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
         uint256 minimalDaiReserve = 280_000 * WAD;
         if (reserveDai < minimalDaiReserve) {
             medianizer.setPrice(727 * WAD);
 
             // If there's no sufficient initial liquidity the price might be way off, need to first arb it
-            uint256 small = 1e16;
             uint256 refSmall = refAmountOut(small);
             changeUniV2Price(small, refSmall * 999 / 1000, refSmall * 1001 / 1000);
 
@@ -175,7 +174,7 @@ contract FlapperUniV2Test is Test {
             topUpLiquidity(minimalDaiReserve - reserveDai);
         } else {
             // If there is initial liquidity, then the oracle price should be set to the current price
-            medianizer.setPrice(uniV2AmountOut(vow.bump() / RAY));
+            medianizer.setPrice(uniV2AmountOut(small) * WAD / small);
         }
     }
 
@@ -188,6 +187,7 @@ contract FlapperUniV2Test is Test {
         amountOut = RouterLike(UNIV2_ROUTER).getAmountOut(amountIn, reserveDai, reserveMkr);
     }
 
+    // TODO: consider changing price using balance manipulations and sync (thus avoiding the loops)
     function changeUniV2Price(uint256 amountIn, uint256 minOutAmount, uint256 maxOutAMount) internal {
         uint256 current = uniV2AmountOut(amountIn);
 
@@ -251,7 +251,7 @@ contract FlapperUniV2Test is Test {
     }
 
     function testDefaultValues() public {
-        FlapperUniV2 f = new FlapperUniV2(DAI_JOIN, MKR, address(medianizer), UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
+        FlapperUniV2 f = new FlapperUniV2(DAI_JOIN, SPOT, MKR, address(medianizer), UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
         assertEq(f.hop(),  1 hours);
         assertEq(f.want(), WAD);
         assertEq(f.live(), 1);
@@ -261,7 +261,7 @@ contract FlapperUniV2Test is Test {
 
     function testIllegalGemDecimals() public {
         vm.expectRevert("FlapperUniV2/gem-decimals-not-18");
-        flapper = new FlapperUniV2(DAI_JOIN, USDC, address(medianizer), UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
+        flapper = new FlapperUniV2(DAI_JOIN, SPOT, USDC, address(medianizer), UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
     }
 
     function testRely() public {
@@ -357,6 +357,23 @@ contract FlapperUniV2Test is Test {
         vow.flap();
     }
 
+    function testKickAfterStoppedWithHop() public {
+        uint256 initialHop = flapper.hop();
+
+        doKick();
+        vm.warp(block.timestamp + flapper.hop());
+
+        // make sure the slippage of the first kick doesn't block us
+        flapper.file("want", marginalWant() * 99 / 100);
+
+        flapper.file("hop", type(uint256).max);
+        vm.expectRevert(); // arithmetic error
+        vow.flap();
+
+        flapper.file("hop", initialHop);
+        vow.flap();
+    }
+
     function testKickNotLive() public {
         flapper.cage(0);
         assertEq(flapper.live(), 0);
@@ -378,110 +395,27 @@ contract FlapperUniV2Test is Test {
         vow.flap();
     }
 
-    function testCageBalance() public {
-        uint256 rad = vow.bump();
-
-        vm.prank(address(vow));
-        vat.move(address(vow), address(flapper), rad);
-
+    function testCage() public {
         assertEq(flapper.live(), 1);
-        assertEq(vat.dai(address(flapper)), rad);
-
-        vm.expectEmit(false, false, false, true);
-        emit Cage(rad);
-        flapper.cage(rad);
-
-        assertEq(flapper.live(), 0);
-        assertEq(vat.dai(address(flapper)), 0);
-        assertEq(vat.dai(address(this)), rad);
-    }
-
-    function testCageNoBalance() public {
-        assertEq(flapper.live(), 1);
-        assertEq(vat.dai(address(flapper)), 0);
-
         vm.expectEmit(false, false, false, true);
         emit Cage(0);
         flapper.cage(0);
-
         assertEq(flapper.live(), 0);
-        assertEq(vat.dai(address(flapper)), 0);
     }
 
-    function testCageThroughEndBalance() public {
-        uint256 rad = vow.bump();
-
-        vm.prank(address(vow));
-        vat.move(address(vow), address(flapper), rad);
-
+    function testCageThroughEnd() public {
         assertEq(flapper.live(), 1);
-        assertEq(vat.dai(address(flapper)), rad);
-
-        vm.prank(PAUSE_PROXY);
-        vm.expectEmit(false, false, false, true, address(flapper));
-        emit Cage(rad);
-        end.cage();
-
-        assertEq(flapper.live(), 0);
-        assertEq(vat.dai(address(flapper)), 0);
-    }
-
-    function testCageThroughEndNoBalance() public {
-        assertEq(flapper.live(), 1);
-        assertEq(vat.dai(address(flapper)), 0);
-
         vm.prank(PAUSE_PROXY);
         vm.expectEmit(false, false, false, true, address(flapper));
         emit Cage(0);
         end.cage();
-
         assertEq(flapper.live(), 0);
     }
 
     function testCageNotAuthed() public {
-        uint256 rad = vow.bump();
-
-        vm.prank(address(vow));
-        vat.move(address(vow), address(flapper), rad);
-
         assertEq(flapper.live(), 1);
-        assertEq(vat.dai(address(flapper)), rad);
-
-        vm.startPrank(address(123));
+        vm.prank(address(123));
         vm.expectRevert("FlapperUniV2/not-authorized");
-        flapper.cage(rad);
-    }
-
-    function testUncage() public {
         flapper.cage(0);
-        assertEq(flapper.live(), 0);
-
-        vm.expectEmit(false, false, false, false);
-        emit Uncage();
-        flapper.uncage();
-        assertEq(flapper.live(), 1);
-
-        doKick();
-    }
-
-    function testUncageVatNotLive() public {
-        flapper.cage(0);
-        assertEq(flapper.live(), 0);
-
-        vm.prank(PAUSE_PROXY);
-        vat.cage();
-        assertEq(vat.live(), 0);
-
-        vm.expectRevert("FlapperUniV2/vat-not-live");
-        flapper.uncage();
-    }
-
-    function testUncageNotAuthed() public {
-        flapper.cage(0);
-        assertEq(flapper.live(), 0);
-
-        vm.startPrank(address(123));
-        vm.expectRevert("FlapperUniV2/not-authorized");
-        flapper.uncage();
     }
 }
