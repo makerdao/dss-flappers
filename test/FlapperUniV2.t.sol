@@ -79,7 +79,10 @@ interface RouterLike {
         address to,
         uint256 deadline
     ) external returns (uint256 amountA, uint256 amountB);
+}
 
+interface PairLike {
+    function sync() external;
 }
 
 interface GemLike {
@@ -160,21 +163,15 @@ contract FlapperUniV2Test is Test {
         }
 
         // Add initial liquidity if needed
-        uint256 small = 1e16;
         (uint256 reserveDai, ) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
         uint256 minimalDaiReserve = 280_000 * WAD;
         if (reserveDai < minimalDaiReserve) {
             medianizer.setPrice(727 * WAD);
-
-            // If there's no sufficient initial liquidity the price might be way off, need to first arb it
-            uint256 refSmall = refAmountOut(small);
-            changeUniV2Price(small, refSmall * 999 / 1000, refSmall * 1001 / 1000);
-
-            // Inject initial liquidity
+            changeUniV2Price(727 * WAD);
             topUpLiquidity(minimalDaiReserve - reserveDai);
         } else {
             // If there is initial liquidity, then the oracle price should be set to the current price
-            medianizer.setPrice(uniV2AmountOut(small) * WAD / small);
+            medianizer.setPrice(uniV2DaiForMkr(WAD));
         }
     }
 
@@ -182,35 +179,27 @@ contract FlapperUniV2Test is Test {
         return amountIn * WAD / uint256(medianizer.read());
     }
 
-    function uniV2AmountOut(uint256 amountIn) internal returns (uint256 amountOut) {
+    function uniV2MkrForDai(uint256 amountIn) internal returns (uint256 amountOut) {
         (uint256 reserveDai, uint256 reserveMkr) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
         amountOut = RouterLike(UNIV2_ROUTER).getAmountOut(amountIn, reserveDai, reserveMkr);
     }
 
-    // TODO: consider changing price using balance manipulations and sync (thus avoiding the loops)
-    function changeUniV2Price(uint256 amountIn, uint256 minOutAmount, uint256 maxOutAMount) internal {
-        uint256 current = uniV2AmountOut(amountIn);
+    function uniV2DaiForMkr(uint256 amountIn) internal returns (uint256 amountOut) {
+        (uint256 reserveDai, uint256 reserveMkr) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
+        return RouterLike(UNIV2_ROUTER).getAmountOut(amountIn, reserveMkr, reserveDai);
+    }
 
-        address[] memory path = new address[](2);
-        path[0] = MKR;
-        path[1] = DAI;
-        uint256 mkrStep = WAD / 10000;
-        while (current < minOutAmount) {
-            deal(MKR, address(this), mkrStep);
-            RouterLike(UNIV2_ROUTER).swapExactTokensForTokens(mkrStep, 0, path, address(this), block.timestamp);
-            current = uniV2AmountOut(amountIn);
+    function changeUniV2Price(uint256 daiForMkr) internal {
+        (uint256 reserveDai, uint256 reserveMkr) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
+        uint256 currentDaiForMkr = reserveDai * WAD / reserveMkr;
+
+        // neededReserveDai * WAD / neededReserveMkr = daiForMkr;
+        if (currentDaiForMkr > daiForMkr) {
+            deal(MKR, UNIV2_DAI_MKR_PAIR, reserveDai * WAD / daiForMkr);
+        } else {
+            deal(DAI, UNIV2_DAI_MKR_PAIR, reserveMkr * daiForMkr / WAD);
         }
-
-        path[0] = DAI;
-        path[1] = MKR;
-        uint256 daiStep = 1 * WAD / 10;
-        while (current > maxOutAMount) {
-            deal(DAI, address(this), daiStep);
-            RouterLike(UNIV2_ROUTER).swapExactTokensForTokens(daiStep, 0, path, address(this), block.timestamp);
-            current = uniV2AmountOut(amountIn);
-        }
-
-        assert(current >= minOutAmount && current <= maxOutAMount);
+        PairLike(UNIV2_DAI_MKR_PAIR).sync();
     }
 
     function topUpLiquidity(uint256 daiAmt) internal {
@@ -226,7 +215,7 @@ contract FlapperUniV2Test is Test {
 
     function marginalWant() internal returns (uint256) {
         uint256 wbump = vow.bump() / RAY;
-        uint256 actual = uniV2AmountOut(wbump);
+        uint256 actual = uniV2MkrForDai(wbump);
         uint256 ref    = refAmountOut(wbump);
         return actual * WAD / ref;
     }
