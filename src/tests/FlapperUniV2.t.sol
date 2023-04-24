@@ -18,7 +18,7 @@ pragma solidity ^0.8.16;
 
 import "forge-std/Test.sol";
 import { FlapperUniV2 } from "src/FlapperUniV2.sol";
-import "test/helpers/UniswapV2Library.sol";
+import "src/tests/helpers/UniswapV2Library.sol";
 
 interface VatLike {
     function sin(address) external view returns (uint256);
