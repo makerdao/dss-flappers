@@ -129,7 +129,7 @@ contract FlapperUniV2Test is Test {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
-    event Kick(uint256 wlot, uint256 bought, uint256 wad, uint256 liquidity);
+    event Kick(uint256 lot, uint256 bought, uint256 wad, uint256 liquidity);
     event Cage(uint256 rad);
 
     function setUp() public {
@@ -367,6 +367,14 @@ contract FlapperUniV2Test is Test {
         flapper.cage(0);
         assertEq(flapper.live(), 0);
         vm.expectRevert("FlapperUniV2/not-live");
+        vow.flap();
+    }
+
+    function testKickLotBadResolution() public {
+        vm.startPrank(PAUSE_PROXY);
+        vow.file("bump", vow.bump() + 1);
+        vm.stopPrank();
+        vm.expectRevert("FlapperUniV2/lot-not-multiple-of-ray");
         vow.flap();
     }
 

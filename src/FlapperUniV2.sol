@@ -91,7 +91,7 @@ contract FlapperUniV2 {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
-    event Kick(uint256 wlot, uint256 bought, uint256 wad, uint256 liquidity);
+    event Kick(uint256 lot, uint256 bought, uint256 wad, uint256 liquidity);
     event Cage(uint256 rad);
 
     constructor(
@@ -157,7 +157,9 @@ contract FlapperUniV2 {
         zzz = block.timestamp;
 
         uint256 _wlot = lot / RAY;
-        vat.move(msg.sender, address(this), _wlot * RAY);
+        require(_wlot * RAY == lot, "FlapperUniV2/lot-not-multiple-of-ray");
+
+        vat.move(msg.sender, address(this), lot);
         daiJoin.exit(address(this), _wlot);
 
         address[] memory _path = new address[](2);
@@ -193,7 +195,7 @@ contract FlapperUniV2 {
             deadline:       block.timestamp
         });
 
-        emit Kick(_wlot, _bought, _wad, _liquidity);
+        emit Kick(lot, _bought, _wad, _liquidity);
         return 0;
     }
 
