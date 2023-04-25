@@ -24,22 +24,22 @@ contract OracleWrapper {
 
     PipLike public immutable pip;
     address public immutable flapper;
-    uint256 public immutable gemsForPipGem;  // [WAD]
+    uint256 public immutable multiplier;  // [WAD]
 
     constructor(
         address _pip,
         address _flapper,
-        uint256 _gemsForPipGem
+        uint256 _multiplier
     ) {
-        pip           = PipLike(_pip);
-        flapper       = _flapper;
-        gemsForPipGem = _gemsForPipGem;
+        pip        = PipLike(_pip);
+        flapper    = _flapper;
+        multiplier = _multiplier;
     }
 
     uint256 internal constant WAD = 10 ** 18;
 
     function read() external view returns (bytes32) {
         require(msg.sender == flapper, "OracleWrapper/unauthorized-reader"); // preserve oracles whitelisting
-        return bytes32(uint256(pip.read()) * WAD / gemsForPipGem);
+        return bytes32(uint256(pip.read()) * multiplier / WAD);
     }
 }

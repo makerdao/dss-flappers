@@ -52,11 +52,11 @@ contract OracleWrapperTest is Test {
         medianizer.setPrice(727 * WAD);
         medianizer.setHas(true);
 
-        oracleWrapper = PipLike(address(new OracleWrapper(address(medianizer), address(this), 1800 * WAD)));
+        oracleWrapper = PipLike(address(new OracleWrapper(address(medianizer), address(this), WAD / 1800)));
     }
 
     function testRead() public {
-        assertEq(oracleWrapper.read(), bytes32(727 * WAD / 1800)); // 0.40388889e+18
+        assertEq(oracleWrapper.read(), bytes32(uint256(403888888888888485))); // 727+e18 / 1800
     }
 
     function testReadInvalidPrice() public {
