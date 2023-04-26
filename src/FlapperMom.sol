@@ -31,8 +31,8 @@ contract FlapperMom {
 
     FlapperLike public immutable flapper;
 
-    event SetOwner(address indexed newOwner);
-    event SetAuthority(address indexed newAuthority);
+    event SetOwner(address indexed _owner);
+    event SetAuthority(address indexed _authority);
     event Stop();
 
     modifier onlyOwner {
@@ -60,14 +60,14 @@ contract FlapperMom {
     }
 
     // Governance actions with delay
-    function setOwner(address owner_) external onlyOwner {
-        owner = owner_;
-        emit SetOwner(owner_);
+    function setOwner(address _owner) external onlyOwner {
+        owner = _owner;
+        emit SetOwner(_owner);
     }
 
-    function setAuthority(address authority_) external onlyOwner {
-        authority = authority_;
-        emit SetAuthority(authority_);
+    function setAuthority(address _authority) external onlyOwner {
+        authority = _authority;
+        emit SetAuthority(_authority);
     }
 
     // Governance action without delay

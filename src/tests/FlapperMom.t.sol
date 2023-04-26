@@ -40,8 +40,8 @@ contract FlapperMomTest is Test {
 
     ChiefLike constant chief = ChiefLike(0x9eF05f7F6deB616fd37aC3c959a2dDD25A54E4F5);
 
-    event SetOwner(address indexed newOwner);
-    event SetAuthority(address indexed newAuthority);
+    event SetOwner(address indexed _owner);
+    event SetAuthority(address indexed _authority);
     event Stop();
 
     function setUp() public {
