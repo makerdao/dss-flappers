@@ -36,8 +36,6 @@ contract OracleWrapper {
         divisor = _divisor;
     }
 
-    uint256 internal constant WAD = 10 ** 18;
-
     function read() external view returns (bytes32) {
         require(msg.sender == flapper, "OracleWrapper/unauthorized-reader"); // preserve oracles whitelisting
         return bytes32(uint256(pip.read()) / divisor);

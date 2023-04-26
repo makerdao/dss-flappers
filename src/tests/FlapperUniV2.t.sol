@@ -123,7 +123,7 @@ contract FlapperUniV2Test is Test {
     EndLike constant end = EndLike(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
 
     uint256 constant WAD   = 1e18;
-    uint256 constant RAY   = 1e27   ;
+    uint256 constant RAY   = 1e27;
     uint256 constant RAD   = 1e45;
 
     event Rely(address indexed usr);
