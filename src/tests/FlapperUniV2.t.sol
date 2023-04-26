@@ -20,6 +20,10 @@ import "forge-std/Test.sol";
 import { FlapperUniV2 } from "src/FlapperUniV2.sol";
 import "src/tests/helpers/UniswapV2Library.sol";
 
+interface ChainlogLike {
+    function getAddress(bytes32) external view returns (address);
+}
+
 interface VatLike {
     function sin(address) external view returns (uint256);
     function dai(address) external view returns (uint256);
@@ -108,19 +112,20 @@ contract FlapperUniV2Test is Test {
     FlapperUniV2   public flapper;
     MockMedianizer public medianizer;
 
-    address constant DAI_JOIN           = 0x9759A6Ac90977b93B58547b4A71c78317f391A28;
-    address constant SPOT               = 0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3;
-    address constant DAI                = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-    address constant MKR                = 0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2;
-    address constant PAUSE_PROXY        = 0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB;
+    address constant  LOG               = 0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F;
+    address immutable DAI_JOIN          = ChainlogLike(LOG).getAddress("MCD_JOIN_DAI");
+    address immutable SPOT              = ChainlogLike(LOG).getAddress("MCD_SPOT");
+    address immutable DAI               = ChainlogLike(LOG).getAddress("MCD_DAI");
+    address immutable MKR               = ChainlogLike(LOG).getAddress("MCD_GOV");
+    address immutable PAUSE_PROXY       = ChainlogLike(LOG).getAddress("MCD_PAUSE_PROXY");
+    VatLike immutable vat               = VatLike(ChainlogLike(LOG).getAddress("MCD_VAT"));
+    VowLike immutable vow               = VowLike(ChainlogLike(LOG).getAddress("MCD_VOW"));
+    EndLike immutable end               = EndLike(ChainlogLike(LOG).getAddress("MCD_END"));
+
     address constant UNIV2_ROUTER       = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address constant UNIV2_DAI_MKR_PAIR = 0x517F9dD285e75b599234F7221227339478d0FcC8;
     address constant UNIV2_FACTORY      = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address constant USDC               = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-
-    VatLike constant vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
-    VowLike constant vow = VowLike(0xA950524441892A31ebddF91d3cEEFa04Bf454466);
-    EndLike constant end = EndLike(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
 
     uint256 constant WAD = 10 ** 18;
     uint256 constant RAY = 10 ** 27;

@@ -21,6 +21,10 @@ import "forge-std/Test.sol";
 import { FlapperMom } from "src/FlapperMom.sol";
 import { FlapperUniV2 } from "src/FlapperUniV2.sol";
 
+interface ChainlogLike {
+    function getAddress(bytes32) external view returns (address);
+}
+
 interface ChiefLike {
     function hat() external view returns (address);
 }
@@ -31,14 +35,15 @@ contract FlapperMomTest is Test {
     FlapperUniV2 flapper;
     FlapperMom   mom;
 
-    address constant MKR                = 0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2;
-    address constant DAI_JOIN           = 0x9759A6Ac90977b93B58547b4A71c78317f391A28;
-    address constant SPOT               = 0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3;
-    address constant PAUSE_PROXY        = 0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB;
+    address constant  LOG               = 0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F;
+    address immutable DAI_JOIN          = ChainlogLike(LOG).getAddress("MCD_JOIN_DAI");
+    address immutable SPOT              = ChainlogLike(LOG).getAddress("MCD_SPOT");
+    address immutable MKR               = ChainlogLike(LOG).getAddress("MCD_GOV");
+    address immutable PAUSE_PROXY       = ChainlogLike(LOG).getAddress("MCD_PAUSE_PROXY");
+    ChiefLike immutable chief           = ChiefLike(ChainlogLike(LOG).getAddress("MCD_ADM"));
+
     address constant UNIV2_ROUTER       = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address constant UNIV2_DAI_MKR_PAIR = 0x517F9dD285e75b599234F7221227339478d0FcC8;
-
-    ChiefLike constant chief = ChiefLike(0x9eF05f7F6deB616fd37aC3c959a2dDD25A54E4F5);
 
     event SetOwner(address indexed _owner);
     event SetAuthority(address indexed _authority);
