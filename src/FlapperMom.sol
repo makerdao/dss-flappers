@@ -40,6 +40,11 @@ contract FlapperMom {
         _;
     }
 
+    modifier auth {
+        require(isAuthorized(msg.sender, msg.sig), "FlapperMom/not-authorized");
+        _;
+    }
+
     constructor(address _flapper) {
         flapper = FlapperLike(_flapper);
         
@@ -71,9 +76,7 @@ contract FlapperMom {
     }
 
     // Governance action without delay
-    function stop() external {
-        require(isAuthorized(msg.sender, msg.sig), "FlapperMom/not-authorized");
-
+    function stop() external auth {
         flapper.file("hop", type(uint256).max);
         emit Stop();
     }
