@@ -45,7 +45,7 @@ contract OracleWrapperTest is Test {
     MockMedianizer public medianizer;
     PipLike        public oracleWrapper;
 
-    uint256 constant WAD   = 1e18;
+    uint256 constant WAD = 10 ** 18;
 
     function setUp() public {
         medianizer = new MockMedianizer();

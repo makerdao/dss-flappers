@@ -122,9 +122,9 @@ contract FlapperUniV2Test is Test {
     VowLike constant vow = VowLike(0xA950524441892A31ebddF91d3cEEFa04Bf454466);
     EndLike constant end = EndLike(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
 
-    uint256 constant WAD   = 1e18;
-    uint256 constant RAY   = 1e27;
-    uint256 constant RAD   = 1e45;
+    uint256 constant WAD = 10 ** 18;
+    uint256 constant RAY = 10 ** 27;
+    uint256 constant RAD = 10 ** 45;
 
     event Rely(address indexed usr);
     event Deny(address indexed usr);
