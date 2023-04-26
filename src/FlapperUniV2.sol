@@ -72,6 +72,7 @@ contract FlapperUniV2 {
     mapping (address => uint256) public wards;
 
     uint256 public live;  // Active Flag
+    PipLike public pip;   // Reference price oracle
     uint256 public hop;   // [Seconds]    Time between kicks
     uint256 public zzz;   // [Timestamp]  Last kick
     uint256 public want;  // [WAD]        Relative multiplier of the reference price to insist on in the swap.
@@ -80,7 +81,6 @@ contract FlapperUniV2 {
     VatLike     public immutable vat;
     DaiJoinLike public immutable daiJoin;
     SpotterLike public immutable spotter;
-    PipLike     public immutable pip;
     address     public immutable dai;
     address     public immutable gem;
     address     public immutable receiver;
@@ -92,6 +92,7 @@ contract FlapperUniV2 {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
+    event File(bytes32 indexed what, address data);
     event Kick(uint256 lot, uint256 bought, uint256 wad, uint256 liquidity);
     event Cage(uint256 rad);
 
@@ -99,7 +100,6 @@ contract FlapperUniV2 {
         address _daiJoin,
         address _spotter,
         address _gem,
-        address _pip,
         address _router,
         address _pair,
         address _receiver
@@ -107,7 +107,6 @@ contract FlapperUniV2 {
         daiJoin = DaiJoinLike(_daiJoin);
         vat     = VatLike(daiJoin.vat());
         spotter = SpotterLike(_spotter);
-        pip     = PipLike(_pip);
 
         dai = daiJoin.dai();
         gem = _gem;
@@ -147,6 +146,12 @@ contract FlapperUniV2 {
     function file(bytes32 what, uint256 data) external auth {
         if      (what == "hop")  hop = data;
         else if (what == "want") want = data;
+        else revert("FlapperUniV2/file-unrecognized-param");
+        emit File(what, data);
+    }
+
+    function file(bytes32 what, address data) external auth {
+        if (what == "pip") pip = PipLike(data);
         else revert("FlapperUniV2/file-unrecognized-param");
         emit File(what, data);
     }

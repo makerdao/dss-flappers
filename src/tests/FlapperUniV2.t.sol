@@ -129,15 +129,17 @@ contract FlapperUniV2Test is Test {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
+    event File(bytes32 indexed what, address data);
     event Kick(uint256 lot, uint256 bought, uint256 wad, uint256 liquidity);
     event Cage(uint256 rad);
 
     function setUp() public {
         medianizer = new MockMedianizer();
 
-        flapper = new FlapperUniV2(DAI_JOIN, SPOT, MKR, address(medianizer), UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
+        flapper = new FlapperUniV2(DAI_JOIN, SPOT, MKR, UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
         flapper.file("hop", 30 minutes);
         flapper.file("want", WAD * 97 / 100);
+        flapper.file("pip", address(medianizer));
         flapper.rely(address(vow));
 
         vm.startPrank(PAUSE_PROXY);
@@ -240,7 +242,7 @@ contract FlapperUniV2Test is Test {
     }
 
     function testDefaultValues() public {
-        FlapperUniV2 f = new FlapperUniV2(DAI_JOIN, SPOT, MKR, address(medianizer), UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
+        FlapperUniV2 f = new FlapperUniV2(DAI_JOIN, SPOT, MKR, UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
         assertEq(f.hop(),  1 hours);
         assertEq(f.want(), WAD);
         assertEq(f.live(), 1);
@@ -250,7 +252,7 @@ contract FlapperUniV2Test is Test {
 
     function testIllegalGemDecimals() public {
         vm.expectRevert("FlapperUniV2/gem-decimals-not-18");
-        flapper = new FlapperUniV2(DAI_JOIN, SPOT, USDC, address(medianizer), UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
+        flapper = new FlapperUniV2(DAI_JOIN, SPOT, USDC, UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
     }
 
     function testRely() public {
@@ -307,9 +309,27 @@ contract FlapperUniV2Test is Test {
         flapper.file("want", 314);
     }
 
-    function testFileUnrecognized() public {
+    function testFileUintUnrecognized() public {
         vm.expectRevert("FlapperUniV2/file-unrecognized-param");
         flapper.file("nonsense", 23);
+    }
+
+    function testFilePip() public {
+        vm.expectEmit(true, false, false, true);
+        emit File(bytes32("pip"), address(456));
+        flapper.file("pip", address(456));
+        assertEq(address(flapper.pip()), address(456));
+    }
+
+    function testFilePipNotAuthed() public {
+        vm.startPrank(address(123));
+        vm.expectRevert("FlapperUniV2/not-authorized");
+        flapper.file("pip", address(456));
+    }
+
+    function testFileAddressUnrecognized() public {
+        vm.expectRevert("FlapperUniV2/file-unrecognized-param");
+        flapper.file("nonsense", address(0));
     }
 
     function testKick() public {

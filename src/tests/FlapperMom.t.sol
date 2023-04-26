@@ -45,7 +45,7 @@ contract FlapperMomTest is Test {
     event Stop();
 
     function setUp() public {
-        flapper = new FlapperUniV2(DAI_JOIN, SPOT, MKR, address(0), UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
+        flapper = new FlapperUniV2(DAI_JOIN, SPOT, MKR, UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
         assertLt(flapper.hop(), type(uint256).max);
 
         mom = new FlapperMom(address(flapper));
