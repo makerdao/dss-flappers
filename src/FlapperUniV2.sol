@@ -110,12 +110,7 @@ contract FlapperUniV2 {
         receiver = _receiver;
 
         vat.hope(address(daiJoin));
-
         GemLike(dai).approve(address(router), type(uint256).max);
-        GemLike(gem).approve(address(router), type(uint256).max);
-
-        GemLike(dai).approve(address(pair), type(uint256).max);
-        GemLike(gem).approve(address(pair), type(uint256).max);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
