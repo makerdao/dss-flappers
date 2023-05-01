@@ -413,7 +413,7 @@ contract FlapperUniV2Test is Test {
         // Make sure the trade slippage does not fail us
         flapper.file("want", 0);
 
-        vm.expectRevert("FlapperUniV2/slippage-insanity");
+        vm.expectRevert("FlapperUniV2/deposit-insanity");
         vow.flap();
     }
 

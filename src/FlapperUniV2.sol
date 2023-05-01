@@ -185,7 +185,7 @@ contract FlapperUniV2 {
         (uint256 _reserveA, uint256 _reserveB, ) = pair.getReserves();
         uint256 _wad = daiFirst ? _bought * _reserveA / _reserveB
                                 : _bought * _reserveB / _reserveA;
-        require(_wad < _wlot * 110 / 100, "FlapperUniV2/slippage-insanity");
+        require(_wad < _wlot * 120 / 100, "FlapperUniV2/deposit-insanity");
 
         vat.move(msg.sender, address(this), _wad * RAY);
         daiJoin.exit(address(this), _wad);
