@@ -16,7 +16,7 @@
 
 pragma solidity ^0.8.16;
 
-import "forge-std/Test.sol";
+import "dss-test/DssTest.sol";
 import { FlapperUniV2 } from "src/FlapperUniV2.sol";
 import "src/tests/helpers/UniswapV2Library.sol";
 
@@ -50,6 +50,10 @@ interface EndLike {
 
 interface SpotterLike {
     function par() external view returns (uint256);
+}
+
+interface WardsLike {
+    function deny(address) external;
 }
 
 interface RouterLike {
@@ -100,7 +104,7 @@ contract MockMedianizer {
     }
 }
 
-contract FlapperUniV2Test is Test {
+contract FlapperUniV2Test is DssTest {
     using stdStorage for StdStorage;
 
     FlapperUniV2   public flapper;
@@ -122,14 +126,6 @@ contract FlapperUniV2Test is Test {
     address constant UNIV2_FACTORY      = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address constant USDC               = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-    uint256 constant WAD = 10 ** 18;
-    uint256 constant RAY = 10 ** 27;
-    uint256 constant RAD = 10 ** 45;
-
-    event Rely(address indexed usr);
-    event Deny(address indexed usr);
-    event File(bytes32 indexed what, uint256 data);
-    event File(bytes32 indexed what, address data);
     event Kick(uint256 lot, uint256 bought, uint256 wad, uint256 liquidity);
     event Cage(uint256 rad);
 
@@ -258,81 +254,24 @@ contract FlapperUniV2Test is Test {
         flapper = new FlapperUniV2(DAI_JOIN, SPOT, USDC, UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
     }
 
-    function testRely() public {
-        assertEq(flapper.wards(address(123)), 0);
-        vm.expectEmit(true, false, false, false);
-        emit Rely(address(123));
-        flapper.rely(address(123));
-        assertEq(flapper.wards(address(123)), 1);
+    function testAuth() public {
+        checkAuth(address(flapper), "FlapperUniV2");
     }
 
-    function testRelyNotAuthed() public {
-        vm.startPrank(address(123));
-        vm.expectRevert("FlapperUniV2/not-authorized");
-        flapper.rely(address(456));
+    function testAuthModifiers() public virtual {
+        WardsLike(address(flapper)).deny(address(this));
+
+        checkModifier(address(flapper), string(abi.encodePacked("FlapperUniV2", "/not-authorized")), [
+            FlapperUniV2.cage.selector
+        ]);
     }
 
-    function testDeny() public {
-        assertEq(flapper.wards(address(this)), 1);
-        vm.expectEmit(true, false, false, false);
-        emit Deny(address(this));
-        flapper.deny(address(this));
-        assertEq(flapper.wards(address(this)), 0);
+    function testFileUint() public {
+        checkFileUint(address(flapper), "FlapperUniV2", ["hop", "want"]);
     }
 
-    function testDenyNotAuthed() public {
-        vm.startPrank(address(123));
-        vm.expectRevert("FlapperUniV2/not-authorized");
-        flapper.deny(address(456));
-    }
-
-    function testFileHop() public {
-        vm.expectEmit(true, false, false, true);
-        emit File(bytes32("hop"), 30);
-        flapper.file("hop", 30);
-        assertEq(flapper.hop(), 30);
-    }
-
-    function testFileHopNotAuthed() public {
-        vm.startPrank(address(123));
-        vm.expectRevert("FlapperUniV2/not-authorized");
-        flapper.file("hop", 314);
-    }
-
-    function testFileWant() public {
-        vm.expectEmit(true, false, false, true);
-        emit File(bytes32("want"), 42);
-        flapper.file("want", 42);
-        assertEq(flapper.want(), 42);
-    }
-
-    function testFileWantNotAuthed() public {
-        vm.startPrank(address(123));
-        vm.expectRevert("FlapperUniV2/not-authorized");
-        flapper.file("want", 314);
-    }
-
-    function testFileUintUnrecognized() public {
-        vm.expectRevert("FlapperUniV2/file-unrecognized-param");
-        flapper.file("nonsense", 23);
-    }
-
-    function testFilePip() public {
-        vm.expectEmit(true, false, false, true);
-        emit File(bytes32("pip"), address(456));
-        flapper.file("pip", address(456));
-        assertEq(address(flapper.pip()), address(456));
-    }
-
-    function testFilePipNotAuthed() public {
-        vm.startPrank(address(123));
-        vm.expectRevert("FlapperUniV2/not-authorized");
-        flapper.file("pip", address(456));
-    }
-
-    function testFileAddressUnrecognized() public {
-        vm.expectRevert("FlapperUniV2/file-unrecognized-param");
-        flapper.file("nonsense", address(0));
+    function testFileAddress() public {
+        checkFileAddress(address(flapper), "FlapperUniV2", ["pip"]);
     }
 
     function testKick() public {
@@ -430,12 +369,5 @@ contract FlapperUniV2Test is Test {
         emit Cage(0);
         end.cage();
         assertEq(flapper.live(), 0);
-    }
-
-    function testCageNotAuthed() public {
-        assertEq(flapper.live(), 1);
-        vm.prank(address(123));
-        vm.expectRevert("FlapperUniV2/not-authorized");
-        flapper.cage(0);
     }
 }
