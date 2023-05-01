@@ -48,6 +48,10 @@ interface EndLike {
     function cage() external;
 }
 
+interface SpotterLike {
+    function par() external view returns (uint256);
+}
+
 interface RouterLike {
     function getAmountOut(
         uint256 amountIn,
@@ -112,15 +116,16 @@ contract FlapperUniV2Test is Test {
     FlapperUniV2   public flapper;
     MockMedianizer public medianizer;
 
-    address constant  LOG               = 0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F;
-    address immutable DAI_JOIN          = ChainlogLike(LOG).getAddress("MCD_JOIN_DAI");
-    address immutable SPOT              = ChainlogLike(LOG).getAddress("MCD_SPOT");
-    address immutable DAI               = ChainlogLike(LOG).getAddress("MCD_DAI");
-    address immutable MKR               = ChainlogLike(LOG).getAddress("MCD_GOV");
-    address immutable PAUSE_PROXY       = ChainlogLike(LOG).getAddress("MCD_PAUSE_PROXY");
-    VatLike immutable vat               = VatLike(ChainlogLike(LOG).getAddress("MCD_VAT"));
-    VowLike immutable vow               = VowLike(ChainlogLike(LOG).getAddress("MCD_VOW"));
-    EndLike immutable end               = EndLike(ChainlogLike(LOG).getAddress("MCD_END"));
+    address     constant  LOG           = 0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F;
+    address     immutable DAI_JOIN      = ChainlogLike(LOG).getAddress("MCD_JOIN_DAI");
+    address     immutable SPOT          = ChainlogLike(LOG).getAddress("MCD_SPOT");
+    address     immutable DAI           = ChainlogLike(LOG).getAddress("MCD_DAI");
+    address     immutable MKR           = ChainlogLike(LOG).getAddress("MCD_GOV");
+    address     immutable PAUSE_PROXY   = ChainlogLike(LOG).getAddress("MCD_PAUSE_PROXY");
+    VatLike     immutable vat           = VatLike(ChainlogLike(LOG).getAddress("MCD_VAT"));
+    VowLike     immutable vow           = VowLike(ChainlogLike(LOG).getAddress("MCD_VOW"));
+    EndLike     immutable end           = EndLike(ChainlogLike(LOG).getAddress("MCD_END"));
+    SpotterLike immutable spotter       = SpotterLike(ChainlogLike(LOG).getAddress("MCD_SPOT"));
 
     address constant UNIV2_ROUTER       = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address constant UNIV2_DAI_MKR_PAIR = 0x517F9dD285e75b599234F7221227339478d0FcC8;
@@ -186,7 +191,7 @@ contract FlapperUniV2Test is Test {
     }
 
     function refAmountOut(uint256 amountIn) internal view returns (uint256) {
-        return amountIn * WAD / uint256(medianizer.read());
+        return amountIn * WAD / (uint256(medianizer.read()) * RAY / spotter.par());
     }
 
     function uniV2MkrForDai(uint256 amountIn) internal returns (uint256 amountOut) {
