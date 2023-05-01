@@ -35,6 +35,7 @@ interface SpotterLike {
 interface GemLike {
     function decimals() external view returns (uint8);
     function approve(address, uint256) external;
+    function transfer(address, uint256) external;
 }
 
 interface PipLike {
@@ -50,22 +51,13 @@ interface RouterLike {
         address to,
         uint256 deadline
     ) external returns (uint256[] memory amounts);
-
-    function addLiquidity(
-        address tokenA,
-        address tokenB,
-        uint256 amountADesired,
-        uint256 amountBDesired,
-        uint256 amountAMin,
-        uint256 amountBMin,
-        address to,
-        uint256 deadline
-    ) external returns (uint256 amountA, uint256 amountB, uint256 liquidity);
 }
 
+// https://github.com/Uniswap/v2-core/blob/ee547b17853e71ed4e0101ccfd52e70d5acded58/contracts/UniswapV2Pair.sol
 interface PairLike {
     function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
     function token0() external view returns (address);
+    function mint(address to) external returns (uint256 liquidity);
 }
 
 contract FlapperUniV2 {
@@ -118,8 +110,12 @@ contract FlapperUniV2 {
         receiver = _receiver;
 
         vat.hope(address(daiJoin));
+
         GemLike(dai).approve(address(router), type(uint256).max);
         GemLike(gem).approve(address(router), type(uint256).max);
+
+        GemLike(dai).approve(address(pair), type(uint256).max);
+        GemLike(gem).approve(address(pair), type(uint256).max);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -190,16 +186,9 @@ contract FlapperUniV2 {
         vat.move(msg.sender, address(this), _wad * RAY);
         daiJoin.exit(address(this), _wad);
 
-        (,, uint256 _liquidity) = router.addLiquidity({
-            tokenA:         gem,
-            tokenB:         dai,
-            amountADesired: _bought,
-            amountBDesired: _wad,
-            amountAMin:     _bought,
-            amountBMin:     _wad,
-            to:             receiver,
-            deadline:       block.timestamp
-        });
+        GemLike(dai).transfer(address(pair), _wad);
+        GemLike(gem).transfer(address(pair), _bought);
+        uint256 _liquidity = pair.mint(receiver);
 
         emit Kick(lot, _bought, _wad, _liquidity);
         return 0;
