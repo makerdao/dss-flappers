@@ -52,40 +52,15 @@ interface SpotterLike {
     function par() external view returns (uint256);
 }
 
-interface RouterLike {
-    function getAmountOut(
-        uint256 amountIn,
-        uint256 reserveIn,
-        uint256 reserveOut
-    ) external returns (uint256 amountOut);
-
-    function swapExactTokensForTokens(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external returns (uint256[] memory amounts);
-
-    function addLiquidity(
-        address tokenA,
-        address tokenB,
-        uint256 amountADesired,
-        uint256 amountBDesired,
-        uint256 amountAMin,
-        uint256 amountBMin,
-        address to,
-        uint256 deadline
-    ) external returns (uint256 amountA, uint256 amountB, uint256 liquidity);
-}
-
 interface PairLike {
+    function mint(address) external returns (uint256);
     function sync() external;
 }
 
 interface GemLike {
     function balanceOf(address) external view returns (uint256);
     function approve(address, uint256) external;
+    function transfer(address, uint256) external;
 }
 
 contract MockMedianizer {
@@ -117,7 +92,6 @@ contract FlapperUniV2Test is Test {
     EndLike     immutable end           = EndLike(ChainlogLike(LOG).getAddress("MCD_END"));
     SpotterLike immutable spotter       = SpotterLike(ChainlogLike(LOG).getAddress("MCD_SPOT"));
 
-    address constant UNIV2_ROUTER       = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address constant UNIV2_DAI_MKR_PAIR = 0x517F9dD285e75b599234F7221227339478d0FcC8;
     address constant UNIV2_FACTORY      = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address constant USDC               = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -136,7 +110,7 @@ contract FlapperUniV2Test is Test {
     function setUp() public {
         medianizer = new MockMedianizer();
 
-        flapper = new FlapperUniV2(DAI_JOIN, SPOT, MKR, UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
+        flapper = new FlapperUniV2(DAI_JOIN, SPOT, MKR, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
         flapper.file("hop", 30 minutes);
         flapper.file("want", WAD * 97 / 100);
         flapper.file("pip", address(medianizer));
@@ -147,9 +121,6 @@ contract FlapperUniV2Test is Test {
         vow.file("hump", 50_000_000 * RAD);
         vow.file("bump",       5707 * RAD);
         vm.stopPrank();
-
-        GemLike(DAI).approve(UNIV2_ROUTER, type(uint256).max);
-        GemLike(MKR).approve(UNIV2_ROUTER, type(uint256).max);
 
         // Create additional surplus if needed
         uint256 bumps = 2 * vow.bump() + vow.bump() * 110 / 100; // two kicks + 2nd vat.move for the first
@@ -184,14 +155,14 @@ contract FlapperUniV2Test is Test {
         return amountIn * WAD / (uint256(medianizer.read()) * RAY / spotter.par());
     }
 
-    function uniV2MkrForDai(uint256 amountIn) internal returns (uint256 amountOut) {
+    function uniV2MkrForDai(uint256 amountIn) internal view returns (uint256 amountOut) {
         (uint256 reserveDai, uint256 reserveMkr) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
-        amountOut = RouterLike(UNIV2_ROUTER).getAmountOut(amountIn, reserveDai, reserveMkr);
+        amountOut = UniswapV2Library.getAmountOut(amountIn, reserveDai, reserveMkr);
     }
 
-    function uniV2DaiForMkr(uint256 amountIn) internal returns (uint256 amountOut) {
+    function uniV2DaiForMkr(uint256 amountIn) internal view returns (uint256 amountOut) {
         (uint256 reserveDai, uint256 reserveMkr) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
-        return RouterLike(UNIV2_ROUTER).getAmountOut(amountIn, reserveMkr, reserveDai);
+        return UniswapV2Library.getAmountOut(amountIn, reserveMkr, reserveDai);
     }
 
     function changeUniV2Price(uint256 daiForMkr) internal {
@@ -214,11 +185,14 @@ contract FlapperUniV2Test is Test {
         deal(DAI, address(this), GemLike(DAI).balanceOf(address(this)) + daiAmt);
         deal(MKR, address(this), GemLike(MKR).balanceOf(address(this)) + mkrAmt);
 
-        RouterLike(UNIV2_ROUTER).addLiquidity(DAI, MKR, daiAmt, mkrAmt, daiAmt, mkrAmt, address(this), block.timestamp);
-        assertGt(GemLike(UNIV2_DAI_MKR_PAIR).balanceOf(address(this)), 0);
+        GemLike(DAI).transfer(UNIV2_DAI_MKR_PAIR, daiAmt);
+        GemLike(MKR).transfer(UNIV2_DAI_MKR_PAIR, mkrAmt);
+        uint256 liquidity = PairLike(UNIV2_DAI_MKR_PAIR).mint(address(this));
+        assertGt(liquidity, 0);
+        assertGe(GemLike(UNIV2_DAI_MKR_PAIR).balanceOf(address(this)), liquidity);
     }
 
-    function marginalWant() internal returns (uint256) {
+    function marginalWant() internal view returns (uint256) {
         uint256 wbump = vow.bump() / RAY;
         uint256 actual = uniV2MkrForDai(wbump);
         uint256 ref    = refAmountOut(wbump);
@@ -245,7 +219,7 @@ contract FlapperUniV2Test is Test {
     }
 
     function testDefaultValues() public {
-        FlapperUniV2 f = new FlapperUniV2(DAI_JOIN, SPOT, MKR, UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
+        FlapperUniV2 f = new FlapperUniV2(DAI_JOIN, SPOT, MKR, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
         assertEq(f.hop(),  1 hours);
         assertEq(f.want(), WAD);
         assertEq(f.live(), 1);
@@ -255,7 +229,7 @@ contract FlapperUniV2Test is Test {
 
     function testIllegalGemDecimals() public {
         vm.expectRevert("FlapperUniV2/gem-decimals-not-18");
-        flapper = new FlapperUniV2(DAI_JOIN, SPOT, USDC, UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
+        flapper = new FlapperUniV2(DAI_JOIN, SPOT, USDC, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
     }
 
     function testRely() public {
@@ -346,7 +320,7 @@ contract FlapperUniV2Test is Test {
 
     function testKickWantBlocks() public {
         flapper.file("want", marginalWant() * 101 / 100);
-        vm.expectRevert("UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
+        vm.expectRevert("FlapperUniV2/not-minimum-bought-swap");
         vow.flap();
     }
 
