@@ -133,17 +133,6 @@ contract FlapperUniV2 {
         emit File(what, data);
     }
 
-    function _getReserves() internal view returns (uint256 _reserveDai, uint256 _reserveGem) {
-        (uint256 _reserveA, uint256 _reserveB, ) = pair.getReserves();
-        if (daiFirst) {
-            _reserveDai = _reserveA;
-            _reserveGem = _reserveB;
-        } else {
-            _reserveDai = _reserveB;
-            _reserveGem = _reserveA;
-        }
-    }
-
     function kick(uint256 lot, uint256) external auth returns (uint256) {
         require(live == 1, "FlapperUniV2/not-live");
 
@@ -153,12 +142,22 @@ contract FlapperUniV2 {
         uint256 _wlot = lot / RAY;
         require(_wlot * RAY == lot, "FlapperUniV2/lot-not-multiple-of-ray");
 
+        uint256 _reserveDai;
+        uint256 _reserveGem;
+
         // Swap
         vat.move(msg.sender, address(this), lot);
         daiJoin.exit(address(this), _wlot);
 
-        (uint256 _reserveDai, uint256 _reserveGem) = _getReserves();
-        uint256 amountInWithFee = _wlot * 997;
+        (uint256 _reserveA, uint256 _reserveB, ) = pair.getReserves();
+        if (daiFirst) {
+            _reserveDai = _reserveA;
+            _reserveGem = _reserveB;
+        } else {
+            _reserveDai = _reserveB;
+            _reserveGem = _reserveA;
+        }
+        uint256 amountInWithFee = _wlot * 997; // 997 is the Uniwswap fee
         uint256 _bought = amountInWithFee * _reserveGem / (_reserveDai * 1000 + amountInWithFee);
         uint256 _ref = _wlot * WAD / (uint256(pip.read()) * RAY / spotter.par());
         require(_bought >= _ref * want / WAD, "FlapperUniV2/not-minimum-bought-swap");
@@ -172,8 +171,7 @@ contract FlapperUniV2 {
         //
 
         // Deposit
-        (_reserveDai, _reserveGem) = _getReserves();
-        uint256 _wad = _bought * _reserveDai / _reserveGem;
+        uint256 _wad = _bought * (_reserveDai + _wlot) / (_reserveGem - _bought);
         require(_wad < _wlot * 120 / 100, "FlapperUniV2/deposit-insanity");
 
         vat.move(msg.sender, address(this), _wad * RAY);
