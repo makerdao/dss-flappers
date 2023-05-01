@@ -272,9 +272,9 @@ contract FlapperUniV2Test is Test {
     }
 
     function testRelyNotAuthed() public {
-        flapper.deny(address(this));
+        vm.startPrank(address(123));
         vm.expectRevert("FlapperUniV2/not-authorized");
-        flapper.rely(address(123));
+        flapper.rely(address(456));
     }
 
     function testDeny() public {
@@ -286,9 +286,9 @@ contract FlapperUniV2Test is Test {
     }
 
     function testDenyNotAuthed() public {
-        flapper.deny(address(this));
+        vm.startPrank(address(123));
         vm.expectRevert("FlapperUniV2/not-authorized");
-        flapper.deny(address(123));
+        flapper.deny(address(456));
     }
 
     function testFileHop() public {
