@@ -157,32 +157,32 @@ contract FlapperUniV2 {
             _reserveDai = _reserveB;
             _reserveGem = _reserveA;
         }
-        uint256 amountInWithFee = _wlot * 997; // 997 is the Uniswap fee
-        uint256 _bought = amountInWithFee * _reserveGem / (_reserveDai * 1000 + amountInWithFee);
+        uint256 _sellMinusFee = _wlot * 997; // 997 is the Uniswap fee
+        uint256 _buy = _sellMinusFee * _reserveGem / (_reserveDai * 1000 + _sellMinusFee);
         uint256 _ref = _wlot * WAD / (uint256(pip.read()) * RAY / spotter.par());
-        require(_bought >= _ref * want / WAD, "FlapperUniV2/not-minimum-bought-swap");
+        require(_buy >= _ref * want / WAD, "FlapperUniV2/not-minimum-bought-swap");
 
         GemLike(dai).transfer(address(pair), _wlot);
         if (daiFirst) {
-            pair.swap(0, _bought, address(this), new bytes(0));
+            pair.swap(0, _buy, address(this), new bytes(0));
         } else {
-            pair.swap(_bought, 0, address(this), new bytes(0));
+            pair.swap(_buy, 0, address(this), new bytes(0));
         }
         //
 
         // Deposit
-        uint256 _wad = _bought * (_reserveDai + _wlot) / (_reserveGem - _bought);
+        uint256 _wad = _buy * (_reserveDai + _wlot) / (_reserveGem - _buy);
         require(_wad < _wlot * 120 / 100, "FlapperUniV2/deposit-insanity");
 
         vat.move(msg.sender, address(this), _wad * RAY);
         daiJoin.exit(address(this), _wad);
 
         GemLike(dai).transfer(address(pair), _wad);
-        GemLike(gem).transfer(address(pair), _bought);
+        GemLike(gem).transfer(address(pair), _buy);
         uint256 _liquidity = pair.mint(receiver);
         //
 
-        emit Kick(lot, _bought, _wad, _liquidity);
+        emit Kick(lot, _buy, _wad, _liquidity);
         return 0;
     }
 
