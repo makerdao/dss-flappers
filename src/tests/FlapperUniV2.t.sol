@@ -77,16 +77,6 @@ interface RouterLike {
         address to,
         uint256 deadline
     ) external returns (uint256 amountA, uint256 amountB, uint256 liquidity);
-
-    function removeLiquidity(
-        address tokenA,
-        address tokenB,
-        uint256 liquidity,
-        uint256 amountAMin,
-        uint256 amountBMin,
-        address to,
-        uint256 deadline
-    ) external returns (uint256 amountA, uint256 amountB);
 }
 
 interface PairLike {
@@ -411,14 +401,14 @@ contract FlapperUniV2Test is Test {
         vow.flap();
     }
 
-    // Note: this should fail once the pool has significant liquidity from other sources
-    function testKickSlippageInsanity() public {
-        // Remove liquidity from the pool
-        uint256 lps = GemLike(UNIV2_DAI_MKR_PAIR).balanceOf(address(this));
-        GemLike(UNIV2_DAI_MKR_PAIR).approve(UNIV2_ROUTER, lps);
-        RouterLike(UNIV2_ROUTER).removeLiquidity(DAI, MKR, lps, 0, 0, address(this), block.timestamp);
+    function testKickDepositInsanity() public {
+        // Set small reserves for current price, to make sure slippage will be large
+        uint256 dust = 10_000 * WAD;
+        deal(DAI, UNIV2_DAI_MKR_PAIR, dust);
+        deal(MKR, UNIV2_DAI_MKR_PAIR, uniV2MkrForDai(dust));
+        PairLike(UNIV2_DAI_MKR_PAIR).sync();
 
-        // Make sure the trade slippage does not fail us
+        // Make sure the trade slippage enforcement does not fail us
         flapper.file("want", 0);
 
         vm.expectRevert("FlapperUniV2/deposit-insanity");
