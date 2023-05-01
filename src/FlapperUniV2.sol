@@ -157,7 +157,7 @@ contract FlapperUniV2 {
             _reserveDai = _reserveB;
             _reserveGem = _reserveA;
         }
-        uint256 amountInWithFee = _wlot * 997; // 997 is the Uniwswap fee
+        uint256 amountInWithFee = _wlot * 997; // 997 is the Uniswap fee
         uint256 _bought = amountInWithFee * _reserveGem / (_reserveDai * 1000 + amountInWithFee);
         uint256 _ref = _wlot * WAD / (uint256(pip.read()) * RAY / spotter.par());
         require(_bought >= _ref * want / WAD, "FlapperUniV2/not-minimum-bought-swap");
