@@ -384,7 +384,7 @@ contract FlapperUniV2Test is Test {
         flapper.file("want", marginalWant() * 99 / 100);
 
         flapper.file("hop", type(uint256).max);
-        vm.expectRevert(); // arithmetic error
+        vm.expectRevert(bytes(abi.encodeWithSignature("Panic(uint256)", 0x11))); // arithmetic error
         vow.flap();
 
         flapper.file("hop", initialHop);
