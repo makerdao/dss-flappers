@@ -175,7 +175,10 @@ contract FlapperUniV2Test is Test {
         if (reserveDai < minimalDaiReserve) {
             medianizer.setPrice(727 * WAD);
             changeUniV2Price(727 * WAD);
-            topUpLiquidity(minimalDaiReserve - reserveDai);
+           (reserveDai, ) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
+           if(reserveDai < minimalDaiReserve) {
+               topUpLiquidity(minimalDaiReserve - reserveDai);
+           }
         } else {
             // If there is initial liquidity, then the oracle price should be set to the current price
             medianizer.setPrice(uniV2DaiForMkr(WAD));
@@ -213,8 +216,8 @@ contract FlapperUniV2Test is Test {
         (uint256 reserveDai, uint256 reserveMkr) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
         uint256 mkrAmt = UniswapV2Library.quote(daiAmt, reserveDai, reserveMkr);
 
-        deal(DAI, address(this), daiAmt);
-        deal(MKR, address(this), mkrAmt);
+        deal(DAI, address(this), GemLike(DAI).balanceOf(address(this)) + daiAmt);
+        deal(MKR, address(this), GemLike(MKR).balanceOf(address(this)) + mkrAmt);
 
         RouterLike(UNIV2_ROUTER).addLiquidity(DAI, MKR, daiAmt, mkrAmt, daiAmt, mkrAmt, address(this), block.timestamp);
         assertGt(GemLike(UNIV2_DAI_MKR_PAIR).balanceOf(address(this)), 0);
@@ -268,7 +271,7 @@ contract FlapperUniV2Test is Test {
         assertEq(flapper.wards(address(123)), 1);
     }
 
-    function testRelyNonAuthed() public {
+    function testRelyNotAuthed() public {
         flapper.deny(address(this));
         vm.expectRevert("FlapperUniV2/not-authorized");
         flapper.rely(address(123));
@@ -282,7 +285,7 @@ contract FlapperUniV2Test is Test {
         assertEq(flapper.wards(address(this)), 0);
     }
 
-    function testDenyNonAuthed() public {
+    function testDenyNotAuthed() public {
         flapper.deny(address(this));
         vm.expectRevert("FlapperUniV2/not-authorized");
         flapper.deny(address(123));
