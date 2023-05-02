@@ -134,14 +134,8 @@ contract FlapperUniV2 {
     }
 
     function _getReserves() internal view returns (uint256 reserveDai, uint256 reserveGem) {
-        (uint256 _reserveA, uint256 _reserveB, ) = pair.getReserves();
-        if (daiFirst) {
-            reserveDai = _reserveA;
-            reserveGem = _reserveB;
-        } else {
-            reserveDai = _reserveB;
-            reserveGem = _reserveA;
-        }
+        (uint256 _reserveA, uint256 _reserveB,) = pair.getReserves();
+        (reserveDai, reserveGem) = daiFirst ? (_reserveA, _reserveB) : (_reserveB, _reserveA);
     }
 
     // Based on: https://github.com/Uniswap/v2-periphery/blob/0335e8f7e1bd1e8d8329fd300aea2ef2f36dd19f/contracts/libraries/UniswapV2Library.sol#L43
