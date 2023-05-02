@@ -320,7 +320,7 @@ contract FlapperUniV2Test is Test {
 
     function testKickWantBlocks() public {
         flapper.file("want", marginalWant() * 101 / 100);
-        vm.expectRevert("FlapperUniV2/not-minimum-bought-swap");
+        vm.expectRevert("FlapperUniV2/insufficient-buy-amount");
         vow.flap();
     }
 
