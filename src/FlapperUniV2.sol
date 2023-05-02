@@ -159,8 +159,7 @@ contract FlapperUniV2 {
 
         (uint256 _reserveDai, uint256 _reserveGem) = _getReserves();
         uint256 _buy = _getAmountOut(_wlot, _reserveDai, _reserveGem);
-        uint256 _ref = _wlot * WAD / (uint256(pip.read()) * RAY / spotter.par());
-        require(_buy >= _ref * want / WAD, "FlapperUniV2/insufficient-buy-amount");
+        require(_buy >= _wlot * want / (uint256(pip.read()) * RAY / spotter.par()), "FlapperUniV2/insufficient-buy-amount");
 
         GemLike(dai).transfer(address(pair), _wlot);
         (uint256 _amt0Out, uint256 _amt1Out) = daiFirst ? (uint256(0), _buy) : (_buy, uint256(0));
