@@ -133,6 +133,23 @@ contract FlapperUniV2 {
         emit File(what, data);
     }
 
+    function _getReserves() internal view returns (uint256 _reserveDai, uint256 _reserveGem) {
+        (uint256 _reserveA, uint256 _reserveB, ) = pair.getReserves();
+        if (daiFirst) {
+            _reserveDai = _reserveA;
+            _reserveGem = _reserveB;
+        } else {
+            _reserveDai = _reserveB;
+            _reserveGem = _reserveA;
+        }
+    }
+
+    // Based on: https://github.com/Uniswap/v2-periphery/blob/0335e8f7e1bd1e8d8329fd300aea2ef2f36dd19f/contracts/libraries/UniswapV2Library.sol#L43
+    function _getAmountOut(uint256 _amtIn, uint256 _reserveIn, uint256 _reserveOut) internal pure returns (uint256 _amtOut) {
+        uint256 _amtInFee = _amtIn * 997; // 997 is the Uniswap fee
+        _amtOut = _amtInFee * _reserveOut / (_reserveIn * 1000 + _amtInFee);
+    }
+
     function kick(uint256 lot, uint256) external auth returns (uint256) {
         require(live == 1, "FlapperUniV2/not-live");
 
@@ -142,32 +159,19 @@ contract FlapperUniV2 {
         uint256 _wlot = lot / RAY;
         require(_wlot * RAY == lot, "FlapperUniV2/lot-not-multiple-of-ray");
 
-        uint256 _reserveDai;
-        uint256 _reserveGem;
+        (uint256 _reserveDai, uint256 _reserveGem) = _getReserves();
 
         // Swap
         vat.move(msg.sender, address(this), lot);
         daiJoin.exit(address(this), _wlot);
 
-        (uint256 _reserveA, uint256 _reserveB, ) = pair.getReserves();
-        if (daiFirst) {
-            _reserveDai = _reserveA;
-            _reserveGem = _reserveB;
-        } else {
-            _reserveDai = _reserveB;
-            _reserveGem = _reserveA;
-        }
-        uint256 _sellMinusFee = _wlot * 997; // 997 is the Uniswap fee
-        uint256 _buy = _sellMinusFee * _reserveGem / (_reserveDai * 1000 + _sellMinusFee);
+        uint256 _buy = _getAmountOut(_wlot, _reserveDai, _reserveGem);
         uint256 _ref = _wlot * WAD / (uint256(pip.read()) * RAY / spotter.par());
         require(_buy >= _ref * want / WAD, "FlapperUniV2/not-minimum-bought-swap");
 
         GemLike(dai).transfer(address(pair), _wlot);
-        if (daiFirst) {
-            pair.swap(0, _buy, address(this), new bytes(0));
-        } else {
-            pair.swap(_buy, 0, address(this), new bytes(0));
-        }
+        (uint256 _amt0Out, uint256 _amt1Out) = daiFirst ? (uint256(0), _buy) : (_buy, uint256(0));
+        pair.swap(_amt0Out, _amt1Out, address(this), new bytes(0));
         //
 
         // Deposit
