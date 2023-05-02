@@ -42,7 +42,6 @@ contract FlapperMomTest is Test {
     address immutable PAUSE_PROXY       = ChainlogLike(LOG).getAddress("MCD_PAUSE_PROXY");
     ChiefLike immutable chief           = ChiefLike(ChainlogLike(LOG).getAddress("MCD_ADM"));
 
-    address constant UNIV2_ROUTER       = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address constant UNIV2_DAI_MKR_PAIR = 0x517F9dD285e75b599234F7221227339478d0FcC8;
 
     event SetOwner(address indexed _owner);
@@ -50,7 +49,7 @@ contract FlapperMomTest is Test {
     event Stop();
 
     function setUp() public {
-        flapper = new FlapperUniV2(DAI_JOIN, SPOT, MKR, UNIV2_ROUTER, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
+        flapper = new FlapperUniV2(DAI_JOIN, SPOT, MKR, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
         assertLt(flapper.hop(), type(uint256).max);
 
         mom = new FlapperMom(address(flapper));

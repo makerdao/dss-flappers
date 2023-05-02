@@ -42,22 +42,12 @@ interface PipLike {
     function read() external view returns (bytes32);
 }
 
-// https://github.com/Uniswap/v2-periphery/blob/0335e8f7e1bd1e8d8329fd300aea2ef2f36dd19f/contracts/UniswapV2Router02.sol
-interface RouterLike {
-    function swapExactTokensForTokens(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external returns (uint256[] memory amounts);
-}
-
 // https://github.com/Uniswap/v2-core/blob/ee547b17853e71ed4e0101ccfd52e70d5acded58/contracts/UniswapV2Pair.sol
 interface PairLike {
     function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
     function token0() external view returns (address);
     function mint(address to) external returns (uint256 liquidity);
+    function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
 }
 
 contract FlapperUniV2 {
@@ -77,7 +67,6 @@ contract FlapperUniV2 {
     address     public immutable gem;
     address     public immutable receiver;
 
-    RouterLike  public immutable router;
     PairLike    public immutable pair;
     bool        public immutable daiFirst;
 
@@ -92,7 +81,6 @@ contract FlapperUniV2 {
         address _daiJoin,
         address _spotter,
         address _gem,
-        address _router,
         address _pair,
         address _receiver
     ) {
@@ -104,13 +92,11 @@ contract FlapperUniV2 {
         gem = _gem;
         require(GemLike(gem).decimals() == 18, "FlapperUniV2/gem-decimals-not-18");
 
-        router   = RouterLike(_router);
         pair     = PairLike(_pair);
         daiFirst = pair.token0() == dai;
         receiver = _receiver;
 
         vat.hope(address(daiJoin));
-        GemLike(dai).approve(address(router), type(uint256).max);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -147,6 +133,17 @@ contract FlapperUniV2 {
         emit File(what, data);
     }
 
+    function _getReserves() internal view returns (uint256 reserveDai, uint256 reserveGem) {
+        (uint256 _reserveA, uint256 _reserveB,) = pair.getReserves();
+        (reserveDai, reserveGem) = daiFirst ? (_reserveA, _reserveB) : (_reserveB, _reserveA);
+    }
+
+    // Based on: https://github.com/Uniswap/v2-periphery/blob/0335e8f7e1bd1e8d8329fd300aea2ef2f36dd19f/contracts/libraries/UniswapV2Library.sol#L43
+    function _getAmountOut(uint256 amtIn, uint256 reserveIn, uint256 reserveOut) internal pure returns (uint256 amtOut) {
+        uint256 _amtInFee = amtIn * 997; // 997 is the Uniswap LP fee
+        amtOut = _amtInFee * reserveOut / (reserveIn * 1000 + _amtInFee);
+    }
+
     function kick(uint256 lot, uint256) external auth returns (uint256) {
         require(live == 1, "FlapperUniV2/not-live");
 
@@ -156,36 +153,34 @@ contract FlapperUniV2 {
         uint256 _wlot = lot / RAY;
         require(_wlot * RAY == lot, "FlapperUniV2/lot-not-multiple-of-ray");
 
+        // Swap
         vat.move(msg.sender, address(this), lot);
         daiJoin.exit(address(this), _wlot);
 
-        address[] memory _path = new address[](2);
-        _path[0] = dai;
-        _path[1] = gem;
-
+        (uint256 _reserveDai, uint256 _reserveGem) = _getReserves();
+        uint256 _buy = _getAmountOut(_wlot, _reserveDai, _reserveGem);
         uint256 _ref = _wlot * WAD / (uint256(pip.read()) * RAY / spotter.par());
-        uint256[] memory _amounts = router.swapExactTokensForTokens({
-            amountIn:     _wlot,
-            amountOutMin: _ref * want / WAD,
-            path:         _path,
-            to:           address(this),
-            deadline:     block.timestamp
-        });
-        uint256 _bought = _amounts[1];
+        require(_buy >= _ref * want / WAD, "FlapperUniV2/insufficient-buy-amount");
 
-        (uint256 _reserveA, uint256 _reserveB, ) = pair.getReserves();
-        uint256 _wad = daiFirst ? _bought * _reserveA / _reserveB
-                                : _bought * _reserveB / _reserveA;
+        GemLike(dai).transfer(address(pair), _wlot);
+        (uint256 _amt0Out, uint256 _amt1Out) = daiFirst ? (uint256(0), _buy) : (_buy, uint256(0));
+        pair.swap(_amt0Out, _amt1Out, address(this), new bytes(0));
+        //
+
+        // Deposit
+        (_reserveDai, _reserveGem) = _getReserves();
+        uint256 _wad = _buy * _reserveDai / _reserveGem;
         require(_wad < _wlot * 120 / 100, "FlapperUniV2/deposit-insanity");
 
         vat.move(msg.sender, address(this), _wad * RAY);
         daiJoin.exit(address(this), _wad);
 
         GemLike(dai).transfer(address(pair), _wad);
-        GemLike(gem).transfer(address(pair), _bought);
+        GemLike(gem).transfer(address(pair), _buy);
         uint256 _liquidity = pair.mint(receiver);
+        //
 
-        emit Kick(lot, _bought, _wad, _liquidity);
+        emit Kick(lot, _buy, _wad, _liquidity);
         return 0;
     }
 
