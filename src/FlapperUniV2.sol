@@ -174,7 +174,8 @@ contract FlapperUniV2 {
         //
 
         // Deposit
-        uint256 _wad = _buy * (_reserveDai + _wlot) / (_reserveGem - _buy);
+        (_reserveDai, _reserveGem) = _getReserves();
+        uint256 _wad = _buy * _reserveDai / _reserveGem;
         require(_wad < _wlot * 120 / 100, "FlapperUniV2/deposit-insanity");
 
         vat.move(msg.sender, address(this), _wad * RAY);
