@@ -67,6 +67,11 @@ interface GemLike {
     function transfer(address, uint256) external;
 }
 
+interface PipLike {
+    function read() external view returns (bytes32);
+    function kiss(address) external;
+}
+
 contract MockMedianizer {
     uint256 public price;
 
@@ -83,6 +88,7 @@ contract FlapperUniV2Test is DssTest {
     using stdStorage for StdStorage;
 
     FlapperUniV2   public flapper;
+    FlapperUniV2   public linkFlapper;
     MockMedianizer public medianizer;
 
     address     constant  LOG           = 0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F;
@@ -90,15 +96,18 @@ contract FlapperUniV2Test is DssTest {
     address     immutable SPOT          = ChainlogLike(LOG).getAddress("MCD_SPOT");
     address     immutable DAI           = ChainlogLike(LOG).getAddress("MCD_DAI");
     address     immutable MKR           = ChainlogLike(LOG).getAddress("MCD_GOV");
+    address     immutable USDC          = ChainlogLike(LOG).getAddress("USDC");
+    address     immutable LINK          = ChainlogLike(LOG).getAddress("LINK");
     address     immutable PAUSE_PROXY   = ChainlogLike(LOG).getAddress("MCD_PAUSE_PROXY");
     VatLike     immutable vat           = VatLike(ChainlogLike(LOG).getAddress("MCD_VAT"));
     VowLike     immutable vow           = VowLike(ChainlogLike(LOG).getAddress("MCD_VOW"));
     EndLike     immutable end           = EndLike(ChainlogLike(LOG).getAddress("MCD_END"));
     SpotterLike immutable spotter       = SpotterLike(ChainlogLike(LOG).getAddress("MCD_SPOT"));
+    PipLike     immutable linkPip       = PipLike(ChainlogLike(LOG).getAddress("PIP_LINK"));
 
-    address constant UNIV2_DAI_MKR_PAIR = 0x517F9dD285e75b599234F7221227339478d0FcC8;
-    address constant UNIV2_FACTORY      = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
-    address constant USDC               = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address constant UNIV2_FACTORY       = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+    address constant UNIV2_DAI_MKR_PAIR  = 0x517F9dD285e75b599234F7221227339478d0FcC8;
+    address constant UNIV2_LINK_DAI_PAIR = 0x6D4fd456eDecA58Cf53A8b586cd50754547DBDB2;
 
     event Kick(uint256 lot, uint256 bought, uint256 wad, uint256 liquidity);
     event Cage(uint256 rad);
@@ -107,6 +116,8 @@ contract FlapperUniV2Test is DssTest {
         medianizer = new MockMedianizer();
 
         flapper = new FlapperUniV2(DAI_JOIN, SPOT, MKR, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
+        assertEq(flapper.daiFirst(), true);
+
         flapper.file("hop", 30 minutes);
         flapper.file("want", WAD * 97 / 100);
         flapper.file("pip", address(medianizer));
@@ -136,82 +147,109 @@ contract FlapperUniV2Test is DssTest {
         uint256 minimalDaiReserve = 280_000 * WAD;
         if (reserveDai < minimalDaiReserve) {
             medianizer.setPrice(727 * WAD);
-            changeUniV2Price(727 * WAD);
+            changeUniV2Price(727 * WAD, MKR, UNIV2_DAI_MKR_PAIR);
            (reserveDai, ) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
            if(reserveDai < minimalDaiReserve) {
-               topUpLiquidity(minimalDaiReserve - reserveDai);
+               topUpLiquidity(minimalDaiReserve - reserveDai, MKR, UNIV2_DAI_MKR_PAIR);
            }
         } else {
             // If there is initial liquidity, then the oracle price should be set to the current price
-            medianizer.setPrice(uniV2DaiForMkr(WAD));
+            medianizer.setPrice(uniV2DaiForGem(WAD, MKR));
         }
     }
 
-    function refAmountOut(uint256 amountIn) internal view returns (uint256) {
-        return amountIn * WAD / (uint256(medianizer.read()) * RAY / spotter.par());
+    function setupLinkFlapper() internal {
+        linkFlapper = new FlapperUniV2(DAI_JOIN, SPOT, LINK, UNIV2_LINK_DAI_PAIR, PAUSE_PROXY);
+        assertEq(linkFlapper.daiFirst(), false);
+
+        linkFlapper.file("hop", 30 minutes);
+        linkFlapper.file("want", WAD * 97 / 100);
+        linkFlapper.file("pip", address(linkPip));
+        linkFlapper.rely(address(vow));
+
+        vm.startPrank(PAUSE_PROXY);
+        vow.file("flapper", address(linkFlapper));
+        linkPip.kiss(address(linkFlapper));
+        linkPip.kiss(address(this));
+        vm.stopPrank();
+
+        // Add initial liquidity if needed
+        (uint256 reserveDai, ) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, LINK);
+        uint256 minimalDaiReserve = 280_000 * WAD;
+        if (reserveDai < minimalDaiReserve) {
+            changeUniV2Price(uint256(linkPip.read()), LINK, UNIV2_LINK_DAI_PAIR); // As this has an oracle, use it
+            (reserveDai, ) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, LINK);
+            if(reserveDai < minimalDaiReserve) {
+                topUpLiquidity(minimalDaiReserve - reserveDai, LINK, UNIV2_LINK_DAI_PAIR);
+            }
+        }
     }
 
-    function uniV2MkrForDai(uint256 amountIn) internal view returns (uint256 amountOut) {
-        (uint256 reserveDai, uint256 reserveMkr) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
-        amountOut = UniswapV2Library.getAmountOut(amountIn, reserveDai, reserveMkr);
+    function refAmountOut(uint256 amountIn, address pip) internal view returns (uint256) {
+        return amountIn * WAD / (uint256(PipLike(pip).read()) * RAY / spotter.par());
     }
 
-    function uniV2DaiForMkr(uint256 amountIn) internal view returns (uint256 amountOut) {
-        (uint256 reserveDai, uint256 reserveMkr) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
-        return UniswapV2Library.getAmountOut(amountIn, reserveMkr, reserveDai);
+    function uniV2GemForDai(uint256 amountIn, address gem) internal view returns (uint256 amountOut) {
+        (uint256 reserveDai, uint256 reserveGem) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, gem);
+        amountOut = UniswapV2Library.getAmountOut(amountIn, reserveDai, reserveGem);
     }
 
-    function changeUniV2Price(uint256 daiForMkr) internal {
-        (uint256 reserveDai, uint256 reserveMkr) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
-        uint256 currentDaiForMkr = reserveDai * WAD / reserveMkr;
+    function uniV2DaiForGem(uint256 amountIn, address gem) internal view returns (uint256 amountOut) {
+        (uint256 reserveDai, uint256 reserveGem) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, gem);
+        return UniswapV2Library.getAmountOut(amountIn, reserveGem, reserveDai);
+    }
 
-        // neededReserveDai * WAD / neededReserveMkr = daiForMkr;
-        if (currentDaiForMkr > daiForMkr) {
-            deal(MKR, UNIV2_DAI_MKR_PAIR, reserveDai * WAD / daiForMkr);
+    function changeUniV2Price(uint256 daiForGem, address gem, address pair) internal {
+        (uint256 reserveDai, uint256 reserveGem) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, gem);
+        uint256 currentDaiForGem = reserveDai * WAD / reserveGem;
+
+        // neededReserveDai * WAD / neededReserveMkr = daiForGem;
+        if (currentDaiForGem > daiForGem) {
+            deal(gem, pair, reserveDai * WAD / daiForGem);
         } else {
-            deal(DAI, UNIV2_DAI_MKR_PAIR, reserveMkr * daiForMkr / WAD);
+            deal(DAI, pair, reserveGem * daiForGem / WAD);
         }
-        PairLike(UNIV2_DAI_MKR_PAIR).sync();
+        PairLike(pair).sync();
     }
 
-    function topUpLiquidity(uint256 daiAmt) internal {
-        (uint256 reserveDai, uint256 reserveMkr) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
-        uint256 mkrAmt = UniswapV2Library.quote(daiAmt, reserveDai, reserveMkr);
+    function topUpLiquidity(uint256 daiAmt, address gem, address pair) internal {
+        (uint256 reserveDai, uint256 reserveGem) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, gem);
+        uint256 gemAmt = UniswapV2Library.quote(daiAmt, reserveDai, reserveGem);
 
         deal(DAI, address(this), GemLike(DAI).balanceOf(address(this)) + daiAmt);
-        deal(MKR, address(this), GemLike(MKR).balanceOf(address(this)) + mkrAmt);
+        deal(gem, address(this), GemLike(gem).balanceOf(address(this)) + gemAmt);
 
-        GemLike(DAI).transfer(UNIV2_DAI_MKR_PAIR, daiAmt);
-        GemLike(MKR).transfer(UNIV2_DAI_MKR_PAIR, mkrAmt);
-        uint256 liquidity = PairLike(UNIV2_DAI_MKR_PAIR).mint(address(this));
+        GemLike(DAI).transfer(pair, daiAmt);
+        GemLike(gem).transfer(pair, gemAmt);
+        uint256 liquidity = PairLike(pair).mint(address(this));
         assertGt(liquidity, 0);
-        assertGe(GemLike(UNIV2_DAI_MKR_PAIR).balanceOf(address(this)), liquidity);
+        assertGe(GemLike(pair).balanceOf(address(this)), liquidity);
     }
 
-    function marginalWant() internal view returns (uint256) {
+    function marginalWant(address gem, address pip) internal view returns (uint256) {
         uint256 wbump = vow.bump() / RAY;
-        uint256 actual = uniV2MkrForDai(wbump);
-        uint256 ref    = refAmountOut(wbump);
+        uint256 actual = uniV2GemForDai(wbump, gem);
+        uint256 ref    = refAmountOut(wbump, pip);
         return actual * WAD / ref;
     }
 
-    function doKick() internal{
-        uint256 initialLp = GemLike(UNIV2_DAI_MKR_PAIR).balanceOf(address(PAUSE_PROXY));
+    function doKick(address _flapper, address gem, address pair) internal {
+        uint256 initialLp = GemLike(pair).balanceOf(address(PAUSE_PROXY));
         uint256 initialDaiVow = vat.dai(address(vow));
-        uint256 initialReserveDai = GemLike(DAI).balanceOf(UNIV2_DAI_MKR_PAIR);
-        uint256 initialReserveMkr = GemLike(MKR).balanceOf(UNIV2_DAI_MKR_PAIR);
+        uint256 initialReserveDai = GemLike(DAI).balanceOf(pair);
+        uint256 initialReserveMkr = GemLike(gem).balanceOf(pair);
 
         vm.expectEmit(false, false, false, false); // only check event signature (topic 0)
         emit Kick(0, 0, 0, 0);
         vow.flap();
 
-        assertGt(GemLike(UNIV2_DAI_MKR_PAIR).balanceOf(address(PAUSE_PROXY)), initialLp);
-        assertGt(GemLike(DAI).balanceOf(UNIV2_DAI_MKR_PAIR), initialReserveDai);
-        assertEq(GemLike(MKR).balanceOf(UNIV2_DAI_MKR_PAIR), initialReserveMkr);
+        assertGt(GemLike(pair).balanceOf(address(PAUSE_PROXY)), initialLp);
+        assertGt(GemLike(DAI).balanceOf(pair), initialReserveDai);
+        assertEq(GemLike(gem).balanceOf(pair), initialReserveMkr);
         assertGt(initialDaiVow - vat.dai(address(vow)), 2 * vow.bump() * 9 / 10);
         assertLt(initialDaiVow - vat.dai(address(vow)), 2 * vow.bump() * 11 / 10);
-        assertEq(GemLike(DAI).balanceOf(address(flapper)), 0);
-        assertEq(GemLike(MKR).balanceOf(address(flapper)), 0);
+        assertEq(GemLike(DAI).balanceOf(address(_flapper)), 0);
+        assertEq(GemLike(gem).balanceOf(address(_flapper)), 0);
     }
 
     function testDefaultValues() public {
@@ -249,35 +287,47 @@ contract FlapperUniV2Test is DssTest {
     }
 
     function testKick() public {
-        doKick();
+        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
+    }
+
+    function testKickDaiSecond() public {
+        setupLinkFlapper();
+        doKick(address(linkFlapper), LINK, UNIV2_LINK_DAI_PAIR);
     }
 
     function testKickWantAllows() public {
-        flapper.file("want", marginalWant() * 99 / 100);
-        doKick();
+        flapper.file("want", marginalWant(MKR, address(medianizer)) * 99 / 100);
+        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
     }
 
     function testKickWantBlocks() public {
-        flapper.file("want", marginalWant() * 101 / 100);
+        flapper.file("want", marginalWant(MKR, address(medianizer)) * 101 / 100);
+        vm.expectRevert("FlapperUniV2/insufficient-buy-amount");
+        vow.flap();
+    }
+
+    function testKickDaiSecondWantBlocks() public {
+        setupLinkFlapper();
+        linkFlapper.file("want", marginalWant(LINK, address(linkPip)) * 101 / 100);
         vm.expectRevert("FlapperUniV2/insufficient-buy-amount");
         vow.flap();
     }
 
     function testKickAfterHop() public {
-        doKick();
+        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
         vm.warp(block.timestamp + flapper.hop());
 
         // make sure the slippage of the first kick doesn't block us
-        flapper.file("want", marginalWant() * 99 / 100);
-        doKick();
+        flapper.file("want", marginalWant(MKR, address(medianizer)) * 99 / 100);
+        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
     }
 
     function testKickBeforeHop() public {
-        doKick();
+        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
         vm.warp(block.timestamp + flapper.hop() - 1 seconds);
 
         // make sure the slippage of the first kick doesn't block us
-        flapper.file("want", marginalWant() * 99 / 100);
+        flapper.file("want", marginalWant(MKR, address(medianizer)) * 99 / 100);
         vm.expectRevert("FlapperUniV2/kicked-too-soon");
         vow.flap();
     }
@@ -285,11 +335,11 @@ contract FlapperUniV2Test is DssTest {
     function testKickAfterStoppedWithHop() public {
         uint256 initialHop = flapper.hop();
 
-        doKick();
+        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
         vm.warp(block.timestamp + flapper.hop());
 
         // make sure the slippage of the first kick doesn't block us
-        flapper.file("want", marginalWant() * 99 / 100);
+        flapper.file("want", marginalWant(MKR, address(medianizer)) * 99 / 100);
 
         flapper.file("hop", type(uint256).max);
         vm.expectRevert(bytes(abi.encodeWithSignature("Panic(uint256)", 0x11))); // arithmetic error
@@ -318,11 +368,27 @@ contract FlapperUniV2Test is DssTest {
         // Set small reserves for current price, to make sure slippage will be large
         uint256 dust = 10_000 * WAD;
         deal(DAI, UNIV2_DAI_MKR_PAIR, dust);
-        deal(MKR, UNIV2_DAI_MKR_PAIR, uniV2MkrForDai(dust));
+        deal(MKR, UNIV2_DAI_MKR_PAIR, uniV2GemForDai(dust, MKR));
         PairLike(UNIV2_DAI_MKR_PAIR).sync();
 
         // Make sure the trade slippage enforcement does not fail us
         flapper.file("want", 0);
+
+        vm.expectRevert("FlapperUniV2/deposit-insanity");
+        vow.flap();
+    }
+
+    function testKickDaiSecondDepositInsanity() public {
+        setupLinkFlapper();
+
+        // Set small reserves for current price, to make sure slippage will be large
+        uint256 dust = 10_000 * WAD;
+        deal(DAI, UNIV2_LINK_DAI_PAIR, dust);
+        deal(LINK, UNIV2_LINK_DAI_PAIR, uniV2GemForDai(dust, LINK));
+        PairLike(UNIV2_LINK_DAI_PAIR).sync();
+
+        // Make sure the trade slippage enforcement does not fail us
+        linkFlapper.file("want", 0);
 
         vm.expectRevert("FlapperUniV2/deposit-insanity");
         vow.flap();
