@@ -140,7 +140,7 @@ contract FlapperUniV2 {
 
     // Based on: https://github.com/Uniswap/v2-periphery/blob/0335e8f7e1bd1e8d8329fd300aea2ef2f36dd19f/contracts/libraries/UniswapV2Library.sol#L43
     function _getAmountOut(uint256 amtIn, uint256 reserveIn, uint256 reserveOut) internal pure returns (uint256 amtOut) {
-        uint256 _amtInFee = amtIn * 997; // 997 is the Uniswap LP fee
+        uint256 _amtInFee = amtIn * 997;
         amtOut = _amtInFee * reserveOut / (reserveIn * 1000 + _amtInFee);
     }
 
