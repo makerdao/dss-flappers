@@ -100,7 +100,7 @@ contract FlapperUniV2Test is DssTest {
     address constant UNIV2_FACTORY      = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address constant USDC               = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-    event Kick(uint256 lot, uint256 bought, uint256 wad, uint256 liquidity);
+    event Kick(uint256 lot, uint256 total, uint256 bought, uint256 liquidity);
     event Cage(uint256 rad);
 
     function setUp() public {
@@ -306,14 +306,6 @@ contract FlapperUniV2Test is DssTest {
         vow.flap();
     }
 
-    function testKickLotBadResolution() public {
-        vm.startPrank(PAUSE_PROXY);
-        vow.file("bump", vow.bump() + 1);
-        vm.stopPrank();
-        vm.expectRevert("FlapperUniV2/lot-not-multiple-of-ray");
-        vow.flap();
-    }
-
     function testKickDepositInsanity() public {
         // Set small reserves for current price, to make sure slippage will be large
         uint256 dust = 10_000 * WAD;
@@ -324,7 +316,7 @@ contract FlapperUniV2Test is DssTest {
         // Make sure the trade slippage enforcement does not fail us
         flapper.file("want", 0);
 
-        vm.expectRevert("FlapperUniV2/deposit-insanity");
+        vm.expectRevert("FlapperUniV2/total-insanity");
         vow.flap();
     }
 
