@@ -338,7 +338,7 @@ contract FlapperUniV2Test is DssTest {
         vow.flap();
     }
 
-    function testKickDepositInsanity() public {
+    function testKickTotalInsanity() public {
         // Set small reserves for current price, to make sure slippage will be large
         uint256 dust = 10_000 * WAD;
         deal(DAI, UNIV2_DAI_MKR_PAIR, dust);
@@ -352,7 +352,7 @@ contract FlapperUniV2Test is DssTest {
         vow.flap();
     }
 
-    function testKickDaiSecondDepositInsanity() public {
+    function testKickDaiSecondTotalInsanity() public {
         useLinkFlapper();
 
         // Set small reserves for current price, to make sure slippage will be large
@@ -364,7 +364,7 @@ contract FlapperUniV2Test is DssTest {
         // Make sure the trade slippage enforcement does not fail us
         linkFlapper.file("want", 0);
 
-        vm.expectRevert("FlapperUniV2/deposit-insanity");
+        vm.expectRevert("FlapperUniV2/total-insanity");
         vow.flap();
     }
 
