@@ -147,11 +147,15 @@ contract FlapperUniV2 {
     // Additionally, The deposited funds need to be in the same ratio as the reserves after the swap.
     //
     // (1)   reserveDai * reserveGem = (reserveDai + lot * 997 / 1000) * (reserveGem - bought)
-    // (2)   (total - lot) / bought =  (reserveDai + lot) / (reserveGem - bought)
+    // (2)   (total - lot) / bought =  (balanceDai + lot) / (balanceGem - bought)
+    // (3)   lot > 0, reserveDai > 0, reserveGem > 0, _balanceDai >= reserveDai && _balanceGem >= reserveGem
     //
     // The solution for the these equations for variable `total` and `bought` is used below.
-    function _getTotalDai(uint256 wlot, uint256 reserveDai) internal pure returns (uint256 total) {
-        total = wlot * (997 * wlot + 1997 * reserveDai) / (1000 * reserveDai);
+    // https://www.wolframalpha.com/input?i2d=true&i=d*g%3D%5C%2840%29d%2B+Divide%5Bl+*+997%2C1000%5D%5C%2841%29*%5C%2840%29g-b%5C%2841%29+%5C%2844%29+Divide%5B%5C%2840%29t-l%5C%2841%29%2Cb%5D%3DDivide%5BD%2Bl%2CG-b%5D+%5C%2844%29+l%3E0+%5C%2844%29+d%3E0+%5C%2844%29+g%3E0%5C%2844%29+D%3E%3Dd%5C%2844%29+G%3E%3Dg+solve+for+t
+    function _getTotalDai(uint256 wlot, uint256 reserveDai, uint256 reserveGem) internal view returns (uint256 total) {
+        uint256 _balanceDai = GemLike(dai).balanceOf(address(pair));
+        uint256 _balanceGem = GemLike(gem).balanceOf(address(pair));
+        total = wlot * (1000 * reserveDai * _balanceGem + 997 * _balanceDai * reserveGem + 997 * _balanceGem * wlot) / (1000 * reserveDai * _balanceGem + 997 * wlot * (_balanceGem - reserveGem));
     }
 
     // Based on: https://github.com/Uniswap/v2-periphery/blob/0335e8f7e1bd1e8d8329fd300aea2ef2f36dd19f/contracts/libraries/UniswapV2Library.sol#L43
@@ -169,7 +173,7 @@ contract FlapperUniV2 {
         // Get Dai
         (uint256 _reserveDai, uint256 _reserveGem) = _getReserves();
         uint256 _wlot = lot / RAY;
-        uint256 _total = _getTotalDai(_wlot, _reserveDai);
+        uint256 _total = _getTotalDai(_wlot, _reserveDai, _reserveGem);
         require(_total < _wlot * 220 / 100, "FlapperUniV2/total-insanity");
 
         vat.move(msg.sender, address(this), _total * RAY);
@@ -198,7 +202,6 @@ contract FlapperUniV2 {
         console.log("   _liquidity:", _liquidity);
         console.log(" withdraw dai:", _liquidity * GemLike(dai).balanceOf(address(pair)) / pair.totalSupply());
         console.log(" withdraw mkr:", _liquidity * GemLike(gem).balanceOf(address(pair)) / pair.totalSupply());
-
 
         emit Kick(lot, _total, _buy, _liquidity);
         return 0;
