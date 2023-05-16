@@ -189,7 +189,10 @@ contract FlapperUniV2 {
         uint256 _liquidity = pair.mint(receiver);
         //
 
+        console.log("deposited dai", _total - _wlot);
+        console.log("deposited mkr", _buy);
         console.log("_liquidity", _liquidity);
+
 
         emit Kick(lot, _total, _buy, _liquidity);
         return 0;
