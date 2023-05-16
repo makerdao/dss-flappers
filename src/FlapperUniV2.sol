@@ -35,6 +35,7 @@ interface SpotterLike {
 }
 
 interface GemLike {
+    function balanceOf(address) external view returns (uint256);
     function decimals() external view returns (uint8);
     function approve(address, uint256) external;
     function transfer(address, uint256) external;
@@ -50,6 +51,7 @@ interface PairLike {
     function token0() external view returns (address);
     function mint(address to) external returns (uint256 liquidity);
     function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
+    function totalSupply() external view returns (uint256);
 }
 
 contract FlapperUniV2 {
@@ -175,6 +177,7 @@ contract FlapperUniV2 {
         //
 
         // Swap
+        console.log("want", want);
         uint256 _buy = _getAmountOut(_wlot, _reserveDai, _reserveGem);
         require(_buy >= _wlot * want / (uint256(pip.read()) * RAY / spotter.par()), "FlapperUniV2/insufficient-buy-amount");
 
@@ -189,9 +192,12 @@ contract FlapperUniV2 {
         uint256 _liquidity = pair.mint(receiver);
         //
 
-        console.log("deposited dai", _total - _wlot);
-        console.log("deposited mkr", _buy);
-        console.log("_liquidity", _liquidity);
+        console.log("     sold dai:", _wlot);
+        console.log("deposited dai:", _total - _wlot);
+        console.log("deposited mkr:", _buy);
+        console.log("   _liquidity:", _liquidity);
+        console.log(" withdraw dai:", _liquidity * GemLike(dai).balanceOf(address(pair)) / pair.totalSupply());
+        console.log(" withdraw mkr:", _liquidity * GemLike(gem).balanceOf(address(pair)) / pair.totalSupply());
 
 
         emit Kick(lot, _total, _buy, _liquidity);

@@ -290,26 +290,31 @@ contract FlapperUniV2Test is DssTest {
     }
 
     function testKickDonationNone() public {
+        vm.prank(PAUSE_PROXY); flapper.file("want", 97 ether / 100);
         vow.flap();
     }
 
     function testKickDonationDai() public {
+        vm.prank(PAUSE_PROXY); flapper.file("want", 97 ether / 100);
         deal(DAI, UNIV2_DAI_MKR_PAIR, GemLike(DAI).balanceOf(UNIV2_DAI_MKR_PAIR) * 110 / 100);
         vow.flap();
     }
 
     function testKickDonationMkr() public {
+        vm.prank(PAUSE_PROXY); flapper.file("want", 97 ether / 100);
         deal(MKR, UNIV2_DAI_MKR_PAIR, GemLike(MKR).balanceOf(UNIV2_DAI_MKR_PAIR) * 110 / 100);
         vow.flap();
     }
 
     function testKickDonationDaiSyncBefore() public {
+        vm.prank(PAUSE_PROXY); flapper.file("want", 97 ether / 100);
         deal(DAI, UNIV2_DAI_MKR_PAIR, GemLike(DAI).balanceOf(UNIV2_DAI_MKR_PAIR) * 110 / 100);
         PairLike(UNIV2_DAI_MKR_PAIR).sync();
         vow.flap();
     }
 
     function testKickDonationMkrSyncBefore() public {
+        vm.prank(PAUSE_PROXY); flapper.file("want", 97 ether / 100);
         deal(MKR, UNIV2_DAI_MKR_PAIR, GemLike(MKR).balanceOf(UNIV2_DAI_MKR_PAIR) * 110 / 100);
         PairLike(UNIV2_DAI_MKR_PAIR).sync();
         vow.flap();
