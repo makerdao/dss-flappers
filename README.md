@@ -1,6 +1,6 @@
 # Dss Flappers
 
-Implementantions of MakerDao surplus auctions, triggered on `vow.flap`. The current featured Flapper is `FlapperUniV2`.
+Implementations of MakerDao surplus auctions, triggered on `vow.flap`. The current featured Flapper is `FlapperUniV2`.
 
 ### FlapperUniV2
 
