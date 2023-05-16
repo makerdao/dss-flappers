@@ -289,8 +289,18 @@ contract FlapperUniV2Test is DssTest {
         checkFileAddress(address(flapper), "FlapperUniV2", ["pip"]);
     }
 
-    function testKick() public {
-        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
+    function testKickDonationNone() public {
+        vow.flap();
+    }
+
+    function testKickDonationDai() public {
+        deal(DAI, UNIV2_DAI_MKR_PAIR, GemLike(DAI).balanceOf(UNIV2_DAI_MKR_PAIR) * 110 / 100);
+        vow.flap();
+    }
+
+    function testKickDonationMkr() public {
+        deal(MKR, UNIV2_DAI_MKR_PAIR, GemLike(MKR).balanceOf(UNIV2_DAI_MKR_PAIR) * 110 / 100);
+        vow.flap();
     }
 
     function testKickDaiSecond() public {

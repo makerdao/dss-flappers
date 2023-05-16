@@ -16,6 +16,8 @@
 
 pragma solidity ^0.8.16;
 
+import "forge-std/console.sol";
+
 interface VatLike {
     function live() external view returns (uint256);
     function hope(address) external;
@@ -186,6 +188,8 @@ contract FlapperUniV2 {
         GemLike(gem).transfer(address(pair), _buy);
         uint256 _liquidity = pair.mint(receiver);
         //
+
+        console.log("_liquidity", _liquidity);
 
         emit Kick(lot, _total, _buy, _liquidity);
         return 0;
