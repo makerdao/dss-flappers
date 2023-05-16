@@ -138,7 +138,7 @@ contract FlapperUniV2 {
         (reserveDai, reserveGem) = daiFirst ? (_reserveA, _reserveB) : (_reserveB, _reserveA);
     }
 
-    // The Uniswap invariant needs to hold before and after the swap.
+    // The Uniswap invariant needs to hold through the swap.
     // Additionally, The deposited funds need to be in the same ratio as the reserves after the swap.
     //
     // (1)   reserveDai * reserveGem = (reserveDai + lot * 997 / 1000) * (reserveGem - bought)
