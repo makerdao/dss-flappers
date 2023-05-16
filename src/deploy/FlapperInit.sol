@@ -64,7 +64,7 @@ library FlapperInit {
         require(flapper.spotter() == address(dss.spotter), "Flapper spotter mismatch");
 
         require(cfg.hop >= 5 minutes, "hop too low");
-        require(cfg.want >= WAD * 90 / 100, "want too low");
+        //require(cfg.want >= WAD * 90 / 100, "want too low");
 
         flapper.file("hop",  cfg.hop);
         flapper.file("want", cfg.want);

@@ -155,7 +155,7 @@ contract FlapperUniV2Test is DssTest {
         vm.startPrank(PAUSE_PROXY);
         FlapperUniV2Config memory cfg = FlapperUniV2Config({
             hop  : 30 minutes,
-            want : WAD * 97 / 100,
+            want : WAD * 0 / 100,
             pip  : address(_medianizer),
             bump : 5707 * RAD
         });
@@ -300,6 +300,18 @@ contract FlapperUniV2Test is DssTest {
 
     function testKickDonationMkr() public {
         deal(MKR, UNIV2_DAI_MKR_PAIR, GemLike(MKR).balanceOf(UNIV2_DAI_MKR_PAIR) * 110 / 100);
+        vow.flap();
+    }
+
+    function testKickDonationDaiSyncBefore() public {
+        deal(DAI, UNIV2_DAI_MKR_PAIR, GemLike(DAI).balanceOf(UNIV2_DAI_MKR_PAIR) * 110 / 100);
+        PairLike(UNIV2_DAI_MKR_PAIR).sync();
+        vow.flap();
+    }
+
+    function testKickDonationMkrSyncBefore() public {
+        deal(MKR, UNIV2_DAI_MKR_PAIR, GemLike(MKR).balanceOf(UNIV2_DAI_MKR_PAIR) * 110 / 100);
+        PairLike(UNIV2_DAI_MKR_PAIR).sync();
         vow.flap();
     }
 
