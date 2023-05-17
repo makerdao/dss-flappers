@@ -368,6 +368,18 @@ contract FlapperUniV2Test is DssTest {
         vow.flap();
     }
 
+    function testKickDonationDai() public {
+        deal(DAI, UNIV2_DAI_MKR_PAIR, GemLike(DAI).balanceOf(UNIV2_DAI_MKR_PAIR) * 1005 / 1000);
+        // This will now sync the reserves before the swap
+        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
+    }
+
+    function testKickDonationGem() public {
+        deal(MKR, UNIV2_DAI_MKR_PAIR, GemLike(MKR).balanceOf(UNIV2_DAI_MKR_PAIR) * 1005 / 1000);
+        // This will now sync the reserves before the swap
+        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
+    }
+
     function testCage() public {
         assertEq(flapper.live(), 1);
         vm.expectEmit(false, false, false, true);
