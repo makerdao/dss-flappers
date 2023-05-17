@@ -143,8 +143,7 @@ contract FlapperUniV2 {
         uint256 _gemBalance = GemLike(gem).balanceOf(address(pair));
         if (_daiBalance > reserveDai || _gemBalance > reserveGem) {
             pair.sync();
-            reserveDai = _daiBalance;
-            reserveGem = _gemBalance;
+            (reserveDai, reserveGem) = (_daiBalance, _gemBalance);
         }
     }
 
