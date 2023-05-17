@@ -152,7 +152,7 @@ contract FlapperUniV2 {
     // Additionally, The deposited funds need to be in the same ratio as the reserves after the swap.
     //
     // (1)   reserveDai * reserveGem = (reserveDai + lot * 997 / 1000) * (reserveGem - bought)
-    // (2)   (total - lot) / bought =  (reserveDai + lot) / (reserveGem - bought)
+    // (2)   (total - lot) / bought  = (reserveDai + lot) / (reserveGem - bought)
     //
     // The solution for the these equations for variable `total` and `bought` is used below.
     function _getTotalDai(uint256 wlot, uint256 reserveDai) internal pure returns (uint256 total) {
