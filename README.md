@@ -4,7 +4,7 @@ Implementations of MakerDao surplus auctions, triggered on `vow.flap`. The curre
 
 ### FlapperUniV2
 
-Exposes a `kick` operation to be triggered periodically. Its logic draws `DAI` from the `vow` and buys `gem` tokens on Uniswap v2. The acquired tokens, along with a proportional amount of additional `DAI` drawn from the `vow`, are deposited back into the liquidity pool. Finally, the minted LP tokens are sent to a predefined `receiver` address.
+Exposes a `kick` operation to be triggered periodically. Its logic withdraws `DAI` from the `vow` and buys `gem` tokens on Uniswap v2. The acquired tokens, along with a proportional amount of additional `DAI` withdrawn from the `vow`, are deposited back into the liquidity pool. Finally, the minted LP tokens are sent to a predefined `receiver` address.
 
 Configurable Parameters:
 * `hop` - Minimum seconds interval between kicks.
