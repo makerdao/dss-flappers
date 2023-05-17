@@ -36,6 +36,7 @@ interface GemLike {
     function decimals() external view returns (uint8);
     function approve(address, uint256) external;
     function transfer(address, uint256) external;
+    function balanceOf(address) external view returns (uint256);
 }
 
 interface PipLike {
@@ -48,6 +49,7 @@ interface PairLike {
     function token0() external view returns (address);
     function mint(address to) external returns (uint256 liquidity);
     function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
+    function sync() external;
 }
 
 contract FlapperUniV2 {
@@ -133,9 +135,17 @@ contract FlapperUniV2 {
         emit File(what, data);
     }
 
-    function _getReserves() internal view returns (uint256 reserveDai, uint256 reserveGem) {
+    function _getReserves() internal returns (uint256 reserveDai, uint256 reserveGem) {
         (uint256 _reserveA, uint256 _reserveB,) = pair.getReserves();
         (reserveDai, reserveGem) = daiFirst ? (_reserveA, _reserveB) : (_reserveB, _reserveA);
+
+        uint256 _daiDiff = GemLike(dai).balanceOf(address(pair)) - reserveDai;
+        uint256 _gemDiff = GemLike(gem).balanceOf(address(pair)) - reserveGem;
+        if (_daiDiff > 0 || _gemDiff > 0) {
+            pair.sync();
+            reserveDai = reserveDai + _daiDiff;
+            reserveGem = reserveGem + _gemDiff;
+        }
     }
 
     // The Uniswap invariant needs to hold through the swap.
