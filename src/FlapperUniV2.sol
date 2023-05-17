@@ -171,20 +171,23 @@ contract FlapperUniV2 {
         require(block.timestamp >= zzz + hop, "FlapperUniV2/kicked-too-soon");
         zzz = block.timestamp;
 
-        // Get Dai
+        // Check Amounts
         (uint256 _reserveDai, uint256 _reserveGem) = _getReserves();
+
         uint256 _wlot = lot / RAY;
         uint256 _total = _getTotalDai(_wlot, _reserveDai);
         require(_total < _wlot * 220 / 100, "FlapperUniV2/total-insanity");
 
+        uint256 _buy = _getAmountOut(_wlot, _reserveDai, _reserveGem);
+        require(_buy >= _wlot * want / (uint256(pip.read()) * RAY / spotter.par()), "FlapperUniV2/insufficient-buy-amount");
+        //
+
+        // Get Dai
         vat.move(msg.sender, address(this), _total * RAY);
         daiJoin.exit(address(this), _total);
         //
 
         // Swap
-        uint256 _buy = _getAmountOut(_wlot, _reserveDai, _reserveGem);
-        require(_buy >= _wlot * want / (uint256(pip.read()) * RAY / spotter.par()), "FlapperUniV2/insufficient-buy-amount");
-
         GemLike(dai).transfer(address(pair), _wlot);
         (uint256 _amt0Out, uint256 _amt1Out) = daiFirst ? (uint256(0), _buy) : (_buy, uint256(0));
         pair.swap(_amt0Out, _amt1Out, address(this), new bytes(0));
