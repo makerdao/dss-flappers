@@ -34,9 +34,9 @@ interface SpotterLike {
 
 interface GemLike {
     function decimals() external view returns (uint8);
+    function balanceOf(address) external view returns (uint256);
     function approve(address, uint256) external;
     function transfer(address, uint256) external;
-    function balanceOf(address) external view returns (uint256);
 }
 
 interface PipLike {
