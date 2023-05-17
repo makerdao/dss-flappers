@@ -34,6 +34,7 @@ interface SpotterLike {
 
 interface GemLike {
     function decimals() external view returns (uint8);
+    function balanceOf(address) external view returns (uint256);
     function approve(address, uint256) external;
     function transfer(address, uint256) external;
 }
@@ -48,6 +49,7 @@ interface PairLike {
     function token0() external view returns (address);
     function mint(address to) external returns (uint256 liquidity);
     function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
+    function sync() external;
 }
 
 contract FlapperUniV2 {
@@ -74,7 +76,7 @@ contract FlapperUniV2 {
     event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
     event File(bytes32 indexed what, address data);
-    event Kick(uint256 lot, uint256 bought, uint256 wad, uint256 liquidity);
+    event Kick(uint256 lot, uint256 total, uint256 bought, uint256 liquidity);
     event Cage(uint256 rad);
 
     constructor(
@@ -133,9 +135,28 @@ contract FlapperUniV2 {
         emit File(what, data);
     }
 
-    function _getReserves() internal view returns (uint256 reserveDai, uint256 reserveGem) {
+    function _getReserves() internal returns (uint256 reserveDai, uint256 reserveGem) {
         (uint256 _reserveA, uint256 _reserveB,) = pair.getReserves();
         (reserveDai, reserveGem) = daiFirst ? (_reserveA, _reserveB) : (_reserveB, _reserveA);
+
+        uint256 _daiBalance = GemLike(dai).balanceOf(address(pair));
+        uint256 _gemBalance = GemLike(gem).balanceOf(address(pair));
+        if (_daiBalance > reserveDai || _gemBalance > reserveGem) {
+            pair.sync();
+            reserveDai = _daiBalance;
+            reserveGem = _gemBalance;
+        }
+    }
+
+    // The Uniswap invariant needs to hold through the swap.
+    // Additionally, The deposited funds need to be in the same ratio as the reserves after the swap.
+    //
+    // (1)   reserveDai * reserveGem = (reserveDai + lot * 997 / 1000) * (reserveGem - bought)
+    // (2)   (total - lot) / bought  = (reserveDai + lot) / (reserveGem - bought)
+    //
+    // The solution for the these equations for variable `total` and `bought` is used below.
+    function _getTotalDai(uint256 wlot, uint256 reserveDai) internal pure returns (uint256 total) {
+        total = wlot * (997 * wlot + 1997 * reserveDai) / (1000 * reserveDai);
     }
 
     // Based on: https://github.com/Uniswap/v2-periphery/blob/0335e8f7e1bd1e8d8329fd300aea2ef2f36dd19f/contracts/libraries/UniswapV2Library.sol#L43
@@ -150,36 +171,35 @@ contract FlapperUniV2 {
         require(block.timestamp >= zzz + hop, "FlapperUniV2/kicked-too-soon");
         zzz = block.timestamp;
 
-        uint256 _wlot = lot / RAY;
-        require(_wlot * RAY == lot, "FlapperUniV2/lot-not-multiple-of-ray");
-
-        // Swap
-        vat.move(msg.sender, address(this), lot);
-        daiJoin.exit(address(this), _wlot);
-
+        // Check Amounts
         (uint256 _reserveDai, uint256 _reserveGem) = _getReserves();
+
+        uint256 _wlot = lot / RAY;
+        uint256 _total = _getTotalDai(_wlot, _reserveDai);
+        require(_total < _wlot * 220 / 100, "FlapperUniV2/total-insanity");
+
         uint256 _buy = _getAmountOut(_wlot, _reserveDai, _reserveGem);
         require(_buy >= _wlot * want / (uint256(pip.read()) * RAY / spotter.par()), "FlapperUniV2/insufficient-buy-amount");
+        //
 
+        // Get Dai
+        vat.move(msg.sender, address(this), _total * RAY);
+        daiJoin.exit(address(this), _total);
+        //
+
+        // Swap
         GemLike(dai).transfer(address(pair), _wlot);
         (uint256 _amt0Out, uint256 _amt1Out) = daiFirst ? (uint256(0), _buy) : (_buy, uint256(0));
         pair.swap(_amt0Out, _amt1Out, address(this), new bytes(0));
         //
 
         // Deposit
-        (_reserveDai, _reserveGem) = _getReserves();
-        uint256 _wad = _buy * _reserveDai / _reserveGem;
-        require(_wad < _wlot * 120 / 100, "FlapperUniV2/deposit-insanity");
-
-        vat.move(msg.sender, address(this), _wad * RAY);
-        daiJoin.exit(address(this), _wad);
-
-        GemLike(dai).transfer(address(pair), _wad);
+        GemLike(dai).transfer(address(pair), _total - _wlot);
         GemLike(gem).transfer(address(pair), _buy);
         uint256 _liquidity = pair.mint(receiver);
         //
 
-        emit Kick(lot, _buy, _wad, _liquidity);
+        emit Kick(lot, _total, _buy, _liquidity);
         return 0;
     }
 

@@ -21,8 +21,6 @@ Allows for scaling down an oracle price by a certain value. This can be useful w
 
 ### Notes:
 
-* The swapped amount (`vow.bump`) is received in 10^45 (`RAD`) resolution, and must be a multiple of 10^27 (`RAY`).
-
 * Availability and accounting of the withdrawn `DAI` is the responsibility of the `vow`. At the time of a `kick`, the `vow` is expected to hold at least the swapped amount (`vow.bump`) over the configured flapping threshold (`vow.hump`).
 
 * As a `kick` operation also withdraws `DAI` for depositing in the pool (and not only for swapping), it can in practice reduce the Surplus Buffer to below `vow.bump`.
