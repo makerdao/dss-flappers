@@ -139,12 +139,12 @@ contract FlapperUniV2 {
         (uint256 _reserveA, uint256 _reserveB,) = pair.getReserves();
         (reserveDai, reserveGem) = daiFirst ? (_reserveA, _reserveB) : (_reserveB, _reserveA);
 
-        uint256 _daiDiff = GemLike(dai).balanceOf(address(pair)) - reserveDai;
-        uint256 _gemDiff = GemLike(gem).balanceOf(address(pair)) - reserveGem;
-        if (_daiDiff > 0 || _gemDiff > 0) {
+        uint256 _daiBalance = GemLike(dai).balanceOf(address(pair));
+        uint256 _gemBalance = GemLike(gem).balanceOf(address(pair));
+        if (_daiBalance > reserveDai || _gemBalance > reserveGem) {
             pair.sync();
-            reserveDai = reserveDai + _daiDiff;
-            reserveGem = reserveGem + _gemDiff;
+            reserveDai = _daiBalance;
+            reserveGem = _gemBalance;
         }
     }
 
