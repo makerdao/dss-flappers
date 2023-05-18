@@ -104,7 +104,7 @@ contract FlapperUniV2Test is DssTest {
     address constant UNIV2_DAI_MKR_PAIR  = 0x517F9dD285e75b599234F7221227339478d0FcC8;
     address constant UNIV2_LINK_DAI_PAIR = 0x6D4fd456eDecA58Cf53A8b586cd50754547DBDB2;
 
-    event Kick(uint256 lot, uint256 bought, uint256 wad, uint256 liquidity);
+    event Kick(uint256 lot, uint256 total, uint256 bought, uint256 liquidity);
     event Cage(uint256 rad);
 
     function setUp() public {
@@ -338,15 +338,7 @@ contract FlapperUniV2Test is DssTest {
         vow.flap();
     }
 
-    function testKickLotBadResolution() public {
-        vm.startPrank(PAUSE_PROXY);
-        vow.file("bump", vow.bump() + 1);
-        vm.stopPrank();
-        vm.expectRevert("FlapperUniV2/lot-not-multiple-of-ray");
-        vow.flap();
-    }
-
-    function testKickDepositInsanity() public {
+    function testKickTotalInsanity() public {
         // Set small reserves for current price, to make sure slippage will be large
         uint256 dust = 10_000 * WAD;
         deal(DAI, UNIV2_DAI_MKR_PAIR, dust);
@@ -356,11 +348,11 @@ contract FlapperUniV2Test is DssTest {
         // Make sure the trade slippage enforcement does not fail us
         flapper.file("want", 0);
 
-        vm.expectRevert("FlapperUniV2/deposit-insanity");
+        vm.expectRevert("FlapperUniV2/total-insanity");
         vow.flap();
     }
 
-    function testKickDaiSecondDepositInsanity() public {
+    function testKickDaiSecondTotalInsanity() public {
         useLinkFlapper();
 
         // Set small reserves for current price, to make sure slippage will be large
@@ -372,8 +364,20 @@ contract FlapperUniV2Test is DssTest {
         // Make sure the trade slippage enforcement does not fail us
         linkFlapper.file("want", 0);
 
-        vm.expectRevert("FlapperUniV2/deposit-insanity");
+        vm.expectRevert("FlapperUniV2/total-insanity");
         vow.flap();
+    }
+
+    function testKickDonationDai() public {
+        deal(DAI, UNIV2_DAI_MKR_PAIR, GemLike(DAI).balanceOf(UNIV2_DAI_MKR_PAIR) * 1005 / 1000);
+        // This will now sync the reserves before the swap
+        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
+    }
+
+    function testKickDonationGem() public {
+        deal(MKR, UNIV2_DAI_MKR_PAIR, GemLike(MKR).balanceOf(UNIV2_DAI_MKR_PAIR) * 1005 / 1000);
+        // This will now sync the reserves before the swap
+        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
     }
 
     function testCage() public {
