@@ -66,7 +66,13 @@ contract FlapperMomTest is Test {
         flapper = FlapperUniV2(flapperInstance.flapper);
         mom = FlapperMom(flapperInstance.mom);
 
-        FlapperUniV2Config memory cfg = FlapperUniV2Config(5 minutes, 1e18, address(0), 0); // use random values
+        // use random values
+        FlapperUniV2Config memory cfg = FlapperUniV2Config({
+            hop:  5 minutes,
+            want: 1e18,
+            pip:  address(0),
+            bump: 0
+        });
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
 
         vm.startPrank(PAUSE_PROXY);
