@@ -53,12 +53,10 @@ contract OracleWrapperTest is Test {
         medianizer = PipLike(OsmLike(PIP_ETH).src());
 
         // Get current price
-        vm.prank(PAUSE_PROXY);
-        medianizer.kiss(address(this));
+        vm.prank(PAUSE_PROXY); medianizer.kiss(address(this));
         medianizerPrice = uint256(medianizer.read());
         assertGt(medianizerPrice, 0);
-        vm.prank(PAUSE_PROXY);
-        medianizer.diss(address(this));
+        vm.prank(PAUSE_PROXY); medianizer.diss(address(this));
 
         oracleWrapper = PipLike(FlapperDeploy.deployOracleWrapper(address(medianizer), address(this), 1800));
 
@@ -75,7 +73,7 @@ contract OracleWrapperTest is Test {
     }
 
     function testRead() public {
-        assertEq(oracleWrapper.read(), bytes32(medianizerPrice/ 1800));
+        assertEq(oracleWrapper.read(), bytes32(medianizerPrice / 1800));
     }
 
     function testUnauthorizedReader() public {

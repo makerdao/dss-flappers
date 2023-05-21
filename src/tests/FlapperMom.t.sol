@@ -90,7 +90,7 @@ contract FlapperMomTest is Test {
         assertEq(mom.owner(), address(123));
     }
 
-    function testSetOwnerNonAuthed() public {
+    function testSetOwnerNotAuthed() public {
         vm.expectRevert("FlapperMom/only-owner");
         vm.prank(address(456)); mom.setOwner(address(123));
     }
@@ -102,7 +102,7 @@ contract FlapperMomTest is Test {
         assertEq(mom.authority(), address(123));
     }
 
-    function testSetAuthorityNonAuthed() public {
+    function testSetAuthorityNotAuthed() public {
         vm.expectRevert("FlapperMom/only-owner");
         vm.prank(address(456)); mom.setAuthority(address(123));
     }
