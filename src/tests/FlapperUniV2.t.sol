@@ -57,10 +57,6 @@ interface SpotterLike {
     function par() external view returns (uint256);
 }
 
-interface WardsLike {
-    function deny(address) external;
-}
-
 interface PairLike {
     function mint(address) external returns (uint256);
     function sync() external;
@@ -274,7 +270,7 @@ contract FlapperUniV2Test is DssTest {
     }
 
     function testAuthModifiers() public virtual {
-        vm.prank(PAUSE_PROXY); WardsLike(address(flapper)).deny(address(this));
+        assert(flapper.wards(address(this)) == 0);
 
         checkModifier(address(flapper), string(abi.encodePacked("FlapperUniV2", "/not-authorized")), [
             FlapperUniV2.cage.selector
