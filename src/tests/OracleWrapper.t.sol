@@ -76,6 +76,12 @@ contract OracleWrapperTest is Test {
         assertEq(oracleWrapper.read(), bytes32(medianizerPrice / 1800));
     }
 
+    function testReadInvalidPrice() public {
+        vm.store(address(medianizer), bytes32(uint256(1)), 0); // set val (and age) to 0
+        vm.expectRevert("Median/invalid-price-feed");
+        oracleWrapper.read();
+    }
+
     function testUnauthorizedReader() public {
         vm.prank(address(123));
         vm.expectRevert("OracleWrapper/unauthorized-reader");
