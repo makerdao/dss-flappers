@@ -71,6 +71,7 @@ contract FlapperMomTest is Test {
             hop:  5 minutes,
             want: 1e18,
             pip:  address(0),
+            hump: 1,
             bump: 0
         });
         DssInstance memory dss = MCD.loadFromChainlog(LOG);

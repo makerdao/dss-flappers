@@ -153,12 +153,12 @@ contract FlapperUniV2Test is DssTest {
             hop  : 30 minutes,
             want : WAD * 97 / 100,
             pip  : address(_medianizer),
+            hump : 50_000_000 * RAD,
             bump : 5707 * RAD
         });
 
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
         FlapperInit.initFlapperUniV2(dss, flapperInstance, cfg);
-        FlapperInit.setHump(dss, 50_000_000 * RAD);
         vm.stopPrank();
 
         assertEq(dss.chainlog.getAddress("MCD_FLAP"), address(flapperInstance.flapper));

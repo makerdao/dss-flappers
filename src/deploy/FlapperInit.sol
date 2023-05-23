@@ -44,6 +44,7 @@ struct FlapperUniV2Config {
     uint256 hop;
     uint256 want;
     address pip;
+    uint256 hump;
     uint256 bump;
 }
 
@@ -65,6 +66,7 @@ library FlapperInit {
 
         require(cfg.hop >= 5 minutes, "hop too low");
         require(cfg.want >= WAD * 90 / 100, "want too low");
+        require(cfg.hump > 0, "hump too low");
 
         flapper.file("hop",  cfg.hop);
         flapper.file("want", cfg.want);
@@ -73,6 +75,7 @@ library FlapperInit {
         flapper.rely(address(mom));
 
         dss.vow.file("flapper", address(flapper));
+        dss.vow.file("hump",    cfg.hump);
         dss.vow.file("bump",    cfg.bump);
 
         mom.setAuthority(dss.chainlog.getAddress("MCD_ADM"));
@@ -84,11 +87,5 @@ library FlapperInit {
     function initOracleWrapper(DssInstance memory dss, address wrapper, bytes32 clKey) internal {
         PipLike(OracleWrapperLike(wrapper).pip()).kiss(wrapper);
         dss.chainlog.setAddress(clKey, wrapper);
-    }
-
-    // Change flaps threshold (can be used to enable/disable an existing flapper)
-    function setHump(DssInstance memory dss, uint256 hump) internal {
-        require(hump > 0, "hump too low");
-        dss.vow.file("hump", hump);
     }
 }
