@@ -18,6 +18,11 @@ pragma solidity ^0.8.16;
 
 import "forge-std/Test.sol";
 
+import { DssInstance, MCD } from "dss-test/MCD.sol";
+import { FlapperInstance } from "src/deploy/FlapperInstance.sol";
+import { FlapperDeploy } from "src/deploy/FlapperDeploy.sol";
+import { FlapperUniV2Config, FlapperInit } from "src/deploy/FlapperInit.sol";
+
 import { FlapperMom } from "src/FlapperMom.sol";
 import { FlapperUniV2 } from "src/FlapperUniV2.sol";
 
@@ -49,71 +54,87 @@ contract FlapperMomTest is Test {
     event Stop();
 
     function setUp() public {
-        flapper = new FlapperUniV2(DAI_JOIN, SPOT, MKR, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
-        assertLt(flapper.hop(), type(uint256).max);
+        FlapperInstance memory flapperInstance = FlapperDeploy.deployFlapperUniV2({
+            deployer: address(this),
+            owner:    PAUSE_PROXY,
+            daiJoin:  DAI_JOIN,
+            spotter:  SPOT,
+            gem:      MKR,
+            pair:     UNIV2_DAI_MKR_PAIR,
+            receiver: PAUSE_PROXY
+        });
+        flapper = FlapperUniV2(flapperInstance.flapper);
+        mom = FlapperMom(flapperInstance.mom);
 
-        mom = new FlapperMom(address(flapper));
-        mom.setAuthority(address(chief));
-        flapper.rely(address(mom));
+        // use random values
+        FlapperUniV2Config memory cfg = FlapperUniV2Config({
+            hop:  5 minutes,
+            want: 1e18,
+            pip:  address(0),
+            hump: 1,
+            bump: 0
+        });
+        DssInstance memory dss = MCD.loadFromChainlog(LOG);
+
+        vm.startPrank(PAUSE_PROXY);
+        FlapperInit.initFlapperUniV2(dss, flapperInstance, cfg);
+        vm.stopPrank();
+
+        assertLt(flapper.hop(), type(uint256).max);
     }
 
-    function doStop() internal {
+    function doStop(address sender) internal {
         vm.expectEmit(false, false, false, false);
         emit Stop();
-        mom.stop();
+        vm.prank(sender); mom.stop();
         assertEq(flapper.hop(), type(uint256).max);
     }
 
     function testSetOwner() public {
         vm.expectEmit(true, false, false, false);
         emit SetOwner(address(123));
-        mom.setOwner(address(123));
+        vm.prank(PAUSE_PROXY); mom.setOwner(address(123));
         assertEq(mom.owner(), address(123));
     }
 
-    function testSetOwnerNonAuthed() public {
-        vm.startPrank(address(456));
+    function testSetOwnerNotAuthed() public {
         vm.expectRevert("FlapperMom/only-owner");
-        mom.setOwner(address(123));
+        vm.prank(address(456)); mom.setOwner(address(123));
     }
 
     function testSetAuthority() public {
         vm.expectEmit(true, false, false, false);
         emit SetAuthority(address(123));
-        mom.setAuthority(address(123));
+        vm.prank(PAUSE_PROXY); mom.setAuthority(address(123));
         assertEq(mom.authority(), address(123));
     }
 
-    function testSetAuthorityNonAuthed() public {
-        vm.startPrank(address(456));
+    function testSetAuthorityNotAuthed() public {
         vm.expectRevert("FlapperMom/only-owner");
-        mom.setAuthority(address(123));
+        vm.prank(address(456)); mom.setAuthority(address(123));
     }
 
     function testStopFromOwner() public {
-        doStop();
+        doStop(PAUSE_PROXY);
         vm.expectRevert("FlapperUniV2/kicked-too-soon");
-        flapper.kick(0, 0);
+        vm.prank(PAUSE_PROXY); flapper.kick(0, 0);
     }
 
     function testStopFromHat() public {
-        vm.startPrank(address(chief.hat()));
-        doStop();
-        vm.stopPrank();
+        doStop(address(chief.hat()));
         vm.expectRevert("FlapperUniV2/kicked-too-soon");
-        flapper.kick(0, 0);
+        vm.prank(PAUSE_PROXY); flapper.kick(0, 0);
     }
 
     function testStopAfterZzzSet() public {
         stdstore.target(address(flapper)).sig("zzz()").checked_write(314);
-        doStop();
-        vm.expectRevert(); // arithmetic error
-        flapper.kick(0, 0);
+        doStop(address(chief.hat()));
+        vm.expectRevert(bytes(abi.encodeWithSignature("Panic(uint256)", 0x11))); // arithmetic error
+        vm.prank(PAUSE_PROXY); flapper.kick(0, 0);
     }
 
     function testStopNonAuthed() public {
-        vm.startPrank(address(456));
         vm.expectRevert("FlapperMom/not-authorized");
-        mom.stop();
+        vm.prank(address(456)); mom.stop();
     }
 }
