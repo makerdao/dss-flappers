@@ -19,9 +19,9 @@ pragma solidity ^0.8.16;
 import "forge-std/Test.sol";
 
 import { DssInstance, MCD } from "dss-test/MCD.sol";
-import { FlapperDeploy } from "src/deploy/FlapperDeploy.sol";
-import { FlapperInit } from "src/deploy/FlapperInit.sol";
-import { OracleWrapper } from "src/OracleWrapper.sol";
+import { FlapperDeploy } from "../deploy/FlapperDeploy.sol";
+import { FlapperInit } from "../deploy/FlapperInit.sol";
+import { OracleWrapper } from "../src/OracleWrapper.sol";
 
 interface ChainlogLike {
     function getAddress(bytes32) external view returns (address);
@@ -44,12 +44,17 @@ contract OracleWrapperTest is Test {
 
     address constant LOG = 0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F;
 
-    address immutable PAUSE_PROXY = ChainlogLike(LOG).getAddress("MCD_PAUSE_PROXY");
-    address immutable PIP_ETH     = ChainlogLike(LOG).getAddress("PIP_ETH");
+    address PAUSE_PROXY;
+    address PIP_ETH;
 
     uint256 constant WAD = 10 ** 18;
 
     function setUp() public {
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
+
+        PAUSE_PROXY = ChainlogLike(LOG).getAddress("MCD_PAUSE_PROXY");
+        PIP_ETH     = ChainlogLike(LOG).getAddress("PIP_ETH");
+
         medianizer = PipLike(OsmLike(PIP_ETH).src());
 
         // Get current price

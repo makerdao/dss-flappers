@@ -17,13 +17,13 @@
 pragma solidity ^0.8.16;
 
 import "dss-test/DssTest.sol";
-import { FlapperUniV2 } from "src/FlapperUniV2.sol";
-import "src/tests/helpers/UniswapV2Library.sol";
+import { FlapperUniV2 } from "../src/FlapperUniV2.sol";
+import "./helpers/UniswapV2Library.sol";
 
 import { DssInstance, MCD } from "dss-test/MCD.sol";
-import { FlapperInstance } from "src/deploy/FlapperInstance.sol";
-import { FlapperDeploy } from "src/deploy/FlapperDeploy.sol";
-import { FlapperUniV2Config, FlapperInit } from "src/deploy/FlapperInit.sol";
+import { FlapperInstance } from "../deploy/FlapperInstance.sol";
+import { FlapperDeploy } from "../deploy/FlapperDeploy.sol";
+import { FlapperUniV2Config, FlapperInit } from "../deploy/FlapperInit.sol";
 
 interface ChainlogLike {
     function getAddress(bytes32) external view returns (address);
@@ -88,18 +88,19 @@ contract FlapperUniV2Test is DssTest {
     MockMedianizer public medianizer;
     MockMedianizer public linkMedianizer;
 
+    address     DAI_JOIN;
+    address     SPOT;
+    address     DAI;
+    address     MKR;
+    address     USDC;
+    address     LINK;
+    address     PAUSE_PROXY;
+    VatLike     vat;
+    VowLike     vow;
+    EndLike     end;
+    SpotterLike spotter;
+
     address     constant  LOG           = 0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F;
-    address     immutable DAI_JOIN      = ChainlogLike(LOG).getAddress("MCD_JOIN_DAI");
-    address     immutable SPOT          = ChainlogLike(LOG).getAddress("MCD_SPOT");
-    address     immutable DAI           = ChainlogLike(LOG).getAddress("MCD_DAI");
-    address     immutable MKR           = ChainlogLike(LOG).getAddress("MCD_GOV");
-    address     immutable USDC          = ChainlogLike(LOG).getAddress("USDC");
-    address     immutable LINK          = ChainlogLike(LOG).getAddress("LINK");
-    address     immutable PAUSE_PROXY   = ChainlogLike(LOG).getAddress("MCD_PAUSE_PROXY");
-    VatLike     immutable vat           = VatLike(ChainlogLike(LOG).getAddress("MCD_VAT"));
-    VowLike     immutable vow           = VowLike(ChainlogLike(LOG).getAddress("MCD_VOW"));
-    EndLike     immutable end           = EndLike(ChainlogLike(LOG).getAddress("MCD_END"));
-    SpotterLike immutable spotter       = SpotterLike(ChainlogLike(LOG).getAddress("MCD_SPOT"));
 
     address constant UNIV2_FACTORY       = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address constant UNIV2_DAI_MKR_PAIR  = 0x517F9dD285e75b599234F7221227339478d0FcC8;
@@ -109,6 +110,20 @@ contract FlapperUniV2Test is DssTest {
     event Cage(uint256 rad);
 
     function setUp() public {
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
+
+        DAI_JOIN      = ChainlogLike(LOG).getAddress("MCD_JOIN_DAI");
+        SPOT          = ChainlogLike(LOG).getAddress("MCD_SPOT");
+        DAI           = ChainlogLike(LOG).getAddress("MCD_DAI");
+        MKR           = ChainlogLike(LOG).getAddress("MCD_GOV");
+        USDC          = ChainlogLike(LOG).getAddress("USDC");
+        LINK          = ChainlogLike(LOG).getAddress("LINK");
+        PAUSE_PROXY   = ChainlogLike(LOG).getAddress("MCD_PAUSE_PROXY");
+        vat           = VatLike(ChainlogLike(LOG).getAddress("MCD_VAT"));
+        vow           = VowLike(ChainlogLike(LOG).getAddress("MCD_VOW"));
+        end           = EndLike(ChainlogLike(LOG).getAddress("MCD_END"));
+        spotter       = SpotterLike(ChainlogLike(LOG).getAddress("MCD_SPOT"));
+
         (flapper, medianizer) = setUpFlapper(MKR, UNIV2_DAI_MKR_PAIR, 727 * WAD) ;
         assertEq(flapper.daiFirst(), true);
 
