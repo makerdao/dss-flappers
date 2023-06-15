@@ -19,9 +19,9 @@ pragma solidity ^0.8.16;
 import "forge-std/Test.sol";
 
 import { DssInstance, MCD } from "dss-test/MCD.sol";
-import { FlapperDeploy } from "../deploy/FlapperDeploy.sol";
-import { FlapperInit } from "../deploy/FlapperInit.sol";
-import { OracleWrapper } from "../src/OracleWrapper.sol";
+import { FlapperDeploy } from "deploy/FlapperDeploy.sol";
+import { FlapperInit } from "deploy/FlapperInit.sol";
+import { OracleWrapper } from "src/OracleWrapper.sol";
 
 interface ChainlogLike {
     function getAddress(bytes32) external view returns (address);

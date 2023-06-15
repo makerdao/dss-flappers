@@ -19,12 +19,12 @@ pragma solidity ^0.8.16;
 import "forge-std/Test.sol";
 
 import { DssInstance, MCD } from "dss-test/MCD.sol";
-import { FlapperInstance } from "../deploy/FlapperInstance.sol";
-import { FlapperDeploy } from "../deploy/FlapperDeploy.sol";
-import { FlapperUniV2Config, FlapperInit } from "../deploy/FlapperInit.sol";
+import { FlapperInstance } from "deploy/FlapperInstance.sol";
+import { FlapperDeploy } from "deploy/FlapperDeploy.sol";
+import { FlapperUniV2Config, FlapperInit } from "deploy/FlapperInit.sol";
 
-import { FlapperMom } from "../src/FlapperMom.sol";
-import { FlapperUniV2 } from "../src/FlapperUniV2.sol";
+import { FlapperMom } from "src/FlapperMom.sol";
+import { FlapperUniV2 } from "src/FlapperUniV2.sol";
 
 interface ChainlogLike {
     function getAddress(bytes32) external view returns (address);

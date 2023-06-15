@@ -17,13 +17,13 @@
 pragma solidity ^0.8.16;
 
 import "dss-test/DssTest.sol";
-import { FlapperUniV2 } from "../src/FlapperUniV2.sol";
+import { FlapperUniV2 } from "src/FlapperUniV2.sol";
 import "./helpers/UniswapV2Library.sol";
 
 import { DssInstance, MCD } from "dss-test/MCD.sol";
-import { FlapperInstance } from "../deploy/FlapperInstance.sol";
-import { FlapperDeploy } from "../deploy/FlapperDeploy.sol";
-import { FlapperUniV2Config, FlapperInit } from "../deploy/FlapperInit.sol";
+import { FlapperInstance } from "deploy/FlapperInstance.sol";
+import { FlapperDeploy } from "deploy/FlapperDeploy.sol";
+import { FlapperUniV2Config, FlapperInit } from "deploy/FlapperInit.sol";
 
 interface ChainlogLike {
     function getAddress(bytes32) external view returns (address);

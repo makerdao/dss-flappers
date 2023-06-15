@@ -20,9 +20,9 @@ import "dss-interfaces/Interfaces.sol";
 import { ScriptTools } from "dss-test/ScriptTools.sol";
 
 import { FlapperInstance } from "./FlapperInstance.sol";
-import { FlapperUniV2 } from "../src/FlapperUniV2.sol";
-import { FlapperMom } from "../src/FlapperMom.sol";
-import { OracleWrapper } from "../src/OracleWrapper.sol";
+import { FlapperUniV2 } from "src/FlapperUniV2.sol";
+import { FlapperMom } from "src/FlapperMom.sol";
+import { OracleWrapper } from "src/OracleWrapper.sol";
 
 // Deploy a Flapper instance
 library FlapperDeploy {
