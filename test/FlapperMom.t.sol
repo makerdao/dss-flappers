@@ -19,9 +19,9 @@ pragma solidity ^0.8.16;
 import "forge-std/Test.sol";
 
 import { DssInstance, MCD } from "dss-test/MCD.sol";
-import { FlapperInstance } from "src/deploy/FlapperInstance.sol";
-import { FlapperDeploy } from "src/deploy/FlapperDeploy.sol";
-import { FlapperUniV2Config, FlapperInit } from "src/deploy/FlapperInit.sol";
+import { FlapperInstance } from "deploy/FlapperInstance.sol";
+import { FlapperDeploy } from "deploy/FlapperDeploy.sol";
+import { FlapperUniV2Config, FlapperInit } from "deploy/FlapperInit.sol";
 
 import { FlapperMom } from "src/FlapperMom.sol";
 import { FlapperUniV2 } from "src/FlapperUniV2.sol";
@@ -40,12 +40,13 @@ contract FlapperMomTest is Test {
     FlapperUniV2 flapper;
     FlapperMom   mom;
 
-    address constant  LOG               = 0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F;
-    address immutable DAI_JOIN          = ChainlogLike(LOG).getAddress("MCD_JOIN_DAI");
-    address immutable SPOT              = ChainlogLike(LOG).getAddress("MCD_SPOT");
-    address immutable MKR               = ChainlogLike(LOG).getAddress("MCD_GOV");
-    address immutable PAUSE_PROXY       = ChainlogLike(LOG).getAddress("MCD_PAUSE_PROXY");
-    ChiefLike immutable chief           = ChiefLike(ChainlogLike(LOG).getAddress("MCD_ADM"));
+    address DAI_JOIN;
+    address SPOT;
+    address MKR;
+    address PAUSE_PROXY;
+    ChiefLike chief;
+
+    address constant  LOG = 0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F;
 
     address constant UNIV2_DAI_MKR_PAIR = 0x517F9dD285e75b599234F7221227339478d0FcC8;
 
@@ -54,6 +55,14 @@ contract FlapperMomTest is Test {
     event Stop();
 
     function setUp() public {
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
+
+        DAI_JOIN          = ChainlogLike(LOG).getAddress("MCD_JOIN_DAI");
+        SPOT              = ChainlogLike(LOG).getAddress("MCD_SPOT");
+        MKR               = ChainlogLike(LOG).getAddress("MCD_GOV");
+        PAUSE_PROXY       = ChainlogLike(LOG).getAddress("MCD_PAUSE_PROXY");
+        chief             = ChiefLike(ChainlogLike(LOG).getAddress("MCD_ADM"));
+
         FlapperInstance memory flapperInstance = FlapperDeploy.deployFlapperUniV2({
             deployer: address(this),
             owner:    PAUSE_PROXY,
