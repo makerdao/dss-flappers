@@ -18,7 +18,12 @@ pragma solidity ^0.8.16;
 
 import "dss-test/DssTest.sol";
 import { FlapperUniV2 } from "src/FlapperUniV2.sol";
-import "src/tests/helpers/UniswapV2Library.sol";
+import "./helpers/UniswapV2Library.sol";
+
+import { DssInstance, MCD } from "dss-test/MCD.sol";
+import { FlapperInstance } from "deploy/FlapperInstance.sol";
+import { FlapperDeploy } from "deploy/FlapperDeploy.sol";
+import { FlapperUniV2Config, FlapperInit } from "deploy/FlapperInit.sol";
 
 interface ChainlogLike {
     function getAddress(bytes32) external view returns (address);
@@ -52,10 +57,6 @@ interface SpotterLike {
     function par() external view returns (uint256);
 }
 
-interface WardsLike {
-    function deny(address) external;
-}
-
 interface PairLike {
     function mint(address) external returns (uint256);
     function sync() external;
@@ -87,18 +88,19 @@ contract FlapperUniV2Test is DssTest {
     MockMedianizer public medianizer;
     MockMedianizer public linkMedianizer;
 
+    address     DAI_JOIN;
+    address     SPOT;
+    address     DAI;
+    address     MKR;
+    address     USDC;
+    address     LINK;
+    address     PAUSE_PROXY;
+    VatLike     vat;
+    VowLike     vow;
+    EndLike     end;
+    SpotterLike spotter;
+
     address     constant  LOG           = 0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F;
-    address     immutable DAI_JOIN      = ChainlogLike(LOG).getAddress("MCD_JOIN_DAI");
-    address     immutable SPOT          = ChainlogLike(LOG).getAddress("MCD_SPOT");
-    address     immutable DAI           = ChainlogLike(LOG).getAddress("MCD_DAI");
-    address     immutable MKR           = ChainlogLike(LOG).getAddress("MCD_GOV");
-    address     immutable USDC          = ChainlogLike(LOG).getAddress("USDC");
-    address     immutable LINK          = ChainlogLike(LOG).getAddress("LINK");
-    address     immutable PAUSE_PROXY   = ChainlogLike(LOG).getAddress("MCD_PAUSE_PROXY");
-    VatLike     immutable vat           = VatLike(ChainlogLike(LOG).getAddress("MCD_VAT"));
-    VowLike     immutable vow           = VowLike(ChainlogLike(LOG).getAddress("MCD_VOW"));
-    EndLike     immutable end           = EndLike(ChainlogLike(LOG).getAddress("MCD_END"));
-    SpotterLike immutable spotter       = SpotterLike(ChainlogLike(LOG).getAddress("MCD_SPOT"));
 
     address constant UNIV2_FACTORY       = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address constant UNIV2_DAI_MKR_PAIR  = 0x517F9dD285e75b599234F7221227339478d0FcC8;
@@ -108,17 +110,27 @@ contract FlapperUniV2Test is DssTest {
     event Cage(uint256 rad);
 
     function setUp() public {
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
+
+        DAI_JOIN      = ChainlogLike(LOG).getAddress("MCD_JOIN_DAI");
+        SPOT          = ChainlogLike(LOG).getAddress("MCD_SPOT");
+        DAI           = ChainlogLike(LOG).getAddress("MCD_DAI");
+        MKR           = ChainlogLike(LOG).getAddress("MCD_GOV");
+        USDC          = ChainlogLike(LOG).getAddress("USDC");
+        LINK          = ChainlogLike(LOG).getAddress("LINK");
+        PAUSE_PROXY   = ChainlogLike(LOG).getAddress("MCD_PAUSE_PROXY");
+        vat           = VatLike(ChainlogLike(LOG).getAddress("MCD_VAT"));
+        vow           = VowLike(ChainlogLike(LOG).getAddress("MCD_VOW"));
+        end           = EndLike(ChainlogLike(LOG).getAddress("MCD_END"));
+        spotter       = SpotterLike(ChainlogLike(LOG).getAddress("MCD_SPOT"));
+
         (flapper, medianizer) = setUpFlapper(MKR, UNIV2_DAI_MKR_PAIR, 727 * WAD) ;
         assertEq(flapper.daiFirst(), true);
 
         (linkFlapper, linkMedianizer) = setUpFlapper(LINK, UNIV2_LINK_DAI_PAIR, 654 * WAD / 100);
         assertEq(linkFlapper.daiFirst(), false);
 
-        vm.startPrank(PAUSE_PROXY);
-        vow.file("hump", 50_000_000 * RAD);
-        vow.file("bump",       5707 * RAD);
-        vow.file("flapper", address(flapper)); // use MKR flapper by default
-        vm.stopPrank();
+        changeFlapper(address(flapper)); // Use MKR flapper by default
 
         // Create additional surplus if needed
         uint256 bumps = 2 * vow.bump() + vow.bump() * 110 / 100; // two kicks + 2nd vat.move for the first
@@ -138,13 +150,34 @@ contract FlapperUniV2Test is DssTest {
         internal
         returns (FlapperUniV2 _flapper, MockMedianizer _medianizer)
     {
-        _flapper = new FlapperUniV2(DAI_JOIN, SPOT, gem, pair, PAUSE_PROXY);
         _medianizer = new MockMedianizer();
+        FlapperInstance memory flapperInstance = FlapperDeploy.deployFlapperUniV2({
+            deployer: address(this),
+            owner:    PAUSE_PROXY,
+            daiJoin:  DAI_JOIN,
+            spotter:  SPOT,
+            gem:      gem,
+            pair:     pair,
+            receiver: PAUSE_PROXY
+        });
+        _flapper = FlapperUniV2(flapperInstance.flapper);
 
-        _flapper.file("hop", 30 minutes);
-        _flapper.file("want", WAD * 97 / 100);
-        _flapper.file("pip", address(_medianizer));
-        _flapper.rely(address(vow));
+        // Note - this part emulates the spell initialization
+        vm.startPrank(PAUSE_PROXY);
+        FlapperUniV2Config memory cfg = FlapperUniV2Config({
+            hop  : 30 minutes,
+            want : WAD * 97 / 100,
+            pip  : address(_medianizer),
+            hump : 50_000_000 * RAD,
+            bump : 5707 * RAD
+        });
+
+        DssInstance memory dss = MCD.loadFromChainlog(LOG);
+        FlapperInit.initFlapperUniV2(dss, flapperInstance, cfg);
+        vm.stopPrank();
+
+        assertEq(dss.chainlog.getAddress("MCD_FLAP"), address(flapperInstance.flapper));
+        assertEq(dss.chainlog.getAddress("FLAPPER_MOM"), address(flapperInstance.mom));
 
         // Add initial liquidity if needed
         (uint256 reserveDai, ) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, gem);
@@ -162,9 +195,8 @@ contract FlapperUniV2Test is DssTest {
         }
     }
 
-    function useLinkFlapper() internal {
-        vm.prank(PAUSE_PROXY);
-        vow.file("flapper", address(linkFlapper));
+    function changeFlapper(address _flapper) internal {
+        vm.prank(PAUSE_PROXY); vow.file("flapper", address(_flapper));
     }
 
     function refAmountOut(uint256 amountIn, address pip) internal view returns (uint256) {
@@ -253,7 +285,7 @@ contract FlapperUniV2Test is DssTest {
     }
 
     function testAuthModifiers() public virtual {
-        WardsLike(address(flapper)).deny(address(this));
+        assert(flapper.wards(address(this)) == 0);
 
         checkModifier(address(flapper), string(abi.encodePacked("FlapperUniV2", "/not-authorized")), [
             FlapperUniV2.cage.selector
@@ -273,24 +305,27 @@ contract FlapperUniV2Test is DssTest {
     }
 
     function testKickDaiSecond() public {
-        useLinkFlapper();
+        changeFlapper(address(linkFlapper));
         doKick(address(linkFlapper), LINK, UNIV2_LINK_DAI_PAIR);
     }
 
     function testKickWantAllows() public {
-        flapper.file("want", marginalWant(MKR, address(medianizer)) * 99 / 100);
+        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
+        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
         doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
     }
 
     function testKickWantBlocks() public {
-        flapper.file("want", marginalWant(MKR, address(medianizer)) * 101 / 100);
+        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
+        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 101 / 100);
         vm.expectRevert("FlapperUniV2/insufficient-buy-amount");
         vow.flap();
     }
 
     function testKickDaiSecondWantBlocks() public {
-        useLinkFlapper();
-        linkFlapper.file("want", marginalWant(LINK, address(linkMedianizer)) * 101 / 100);
+        changeFlapper(address(linkFlapper));
+        uint256 _marginalWant = marginalWant(LINK, address(linkMedianizer));
+        vm.prank(PAUSE_PROXY); linkFlapper.file("want", _marginalWant * 101 / 100);
         vm.expectRevert("FlapperUniV2/insufficient-buy-amount");
         vow.flap();
     }
@@ -300,7 +335,8 @@ contract FlapperUniV2Test is DssTest {
         vm.warp(block.timestamp + flapper.hop());
 
         // make sure the slippage of the first kick doesn't block us
-        flapper.file("want", marginalWant(MKR, address(medianizer)) * 99 / 100);
+        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
+        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
         doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
     }
 
@@ -309,7 +345,8 @@ contract FlapperUniV2Test is DssTest {
         vm.warp(block.timestamp + flapper.hop() - 1 seconds);
 
         // make sure the slippage of the first kick doesn't block us
-        flapper.file("want", marginalWant(MKR, address(medianizer)) * 99 / 100);
+        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
+        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
         vm.expectRevert("FlapperUniV2/kicked-too-soon");
         vow.flap();
     }
@@ -321,18 +358,19 @@ contract FlapperUniV2Test is DssTest {
         vm.warp(block.timestamp + flapper.hop());
 
         // make sure the slippage of the first kick doesn't block us
-        flapper.file("want", marginalWant(MKR, address(medianizer)) * 99 / 100);
+        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
+        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
 
-        flapper.file("hop", type(uint256).max);
+        vm.prank(PAUSE_PROXY); flapper.file("hop", type(uint256).max);
         vm.expectRevert(bytes(abi.encodeWithSignature("Panic(uint256)", 0x11))); // arithmetic error
         vow.flap();
 
-        flapper.file("hop", initialHop);
+        vm.prank(PAUSE_PROXY); flapper.file("hop", initialHop);
         vow.flap();
     }
 
     function testKickNotLive() public {
-        flapper.cage(0);
+        vm.prank(PAUSE_PROXY); flapper.cage(0);
         assertEq(flapper.live(), 0);
         vm.expectRevert("FlapperUniV2/not-live");
         vow.flap();
@@ -346,14 +384,14 @@ contract FlapperUniV2Test is DssTest {
         PairLike(UNIV2_DAI_MKR_PAIR).sync();
 
         // Make sure the trade slippage enforcement does not fail us
-        flapper.file("want", 0);
+        vm.prank(PAUSE_PROXY); flapper.file("want", 0);
 
         vm.expectRevert("FlapperUniV2/total-insanity");
         vow.flap();
     }
 
     function testKickDaiSecondTotalInsanity() public {
-        useLinkFlapper();
+        changeFlapper(address(linkFlapper));
 
         // Set small reserves for current price, to make sure slippage will be large
         uint256 dust = 10_000 * WAD;
@@ -362,7 +400,7 @@ contract FlapperUniV2Test is DssTest {
         PairLike(UNIV2_LINK_DAI_PAIR).sync();
 
         // Make sure the trade slippage enforcement does not fail us
-        linkFlapper.file("want", 0);
+        vm.prank(PAUSE_PROXY); linkFlapper.file("want", 0);
 
         vm.expectRevert("FlapperUniV2/total-insanity");
         vow.flap();
@@ -384,16 +422,15 @@ contract FlapperUniV2Test is DssTest {
         assertEq(flapper.live(), 1);
         vm.expectEmit(false, false, false, true);
         emit Cage(0);
-        flapper.cage(0);
+        vm.prank(PAUSE_PROXY); flapper.cage(0);
         assertEq(flapper.live(), 0);
     }
 
     function testCageThroughEnd() public {
         assertEq(flapper.live(), 1);
-        vm.prank(PAUSE_PROXY);
         vm.expectEmit(false, false, false, true, address(flapper));
         emit Cage(0);
-        end.cage();
+        vm.prank(PAUSE_PROXY); end.cage();
         assertEq(flapper.live(), 0);
     }
 }
