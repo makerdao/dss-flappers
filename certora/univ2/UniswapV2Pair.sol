@@ -300,13 +300,6 @@ interface IUniswapV2Callee {
 
 pragma solidity =0.5.16;
 
-
-
-
-
-
-
-
 contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
     using SafeMath  for uint;
     using UQ112x112 for uint224;
@@ -326,7 +319,7 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
     uint public price1CumulativeLast;
     uint public kLast; // reserve0 * reserve1, as of immediately after the most recent liquidity event
 
-    uint private unlocked = 1;
+    uint public unlocked = 1;
     modifier lock() {
         require(unlocked == 1, 'UniswapV2: LOCKED');
         unlocked = 0;
