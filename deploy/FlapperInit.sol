@@ -23,6 +23,7 @@ interface FlapperUniV2Like {
     function vat() external view returns (address);
     function daiJoin() external view returns (address);
     function spotter() external view returns (address);
+    function pip() external view returns (address);
     function rely(address) external;
     function file(bytes32, uint256) external;
     function file(bytes32, address) external;
@@ -82,6 +83,10 @@ library FlapperInit {
 
         dss.chainlog.setAddress("MCD_FLAP",    address(flapper));
         dss.chainlog.setAddress("FLAPPER_MOM", address(mom));
+    }
+
+    function initDirectOracle(address flapper) internal {
+        PipLike(FlapperUniV2Like(flapper).pip()).kiss(flapper);
     }
 
     function initOracleWrapper(DssInstance memory dss, address wrapper, bytes32 clKey) internal {
