@@ -70,12 +70,18 @@ interface GemLike {
 
 contract MockMedianizer {
     uint256 public price;
+    mapping (address => uint256) public bud;
 
     function setPrice(uint256 price_) external {
         price = price_;
     }
 
+    function kiss(address a) external {
+        bud[a] = 1;
+    }
+
     function read() external view returns (bytes32) {
+        require(bud[msg.sender] == 1, "MockMedianizer/not-authorized");
         return bytes32(price);
     }
 }
@@ -151,6 +157,8 @@ contract FlapperUniV2Test is DssTest {
         returns (FlapperUniV2 _flapper, MockMedianizer _medianizer)
     {
         _medianizer = new MockMedianizer();
+        _medianizer.kiss(address(this));
+
         FlapperInstance memory flapperInstance = FlapperDeploy.deployFlapperUniV2({
             deployer: address(this),
             owner:    PAUSE_PROXY,
@@ -174,6 +182,7 @@ contract FlapperUniV2Test is DssTest {
 
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
         FlapperInit.initFlapperUniV2(dss, flapperInstance, cfg);
+        FlapperInit.initDirectOracle(address(_flapper));
         vm.stopPrank();
 
         assertEq(dss.chainlog.getAddress("MCD_FLAP"), address(flapperInstance.flapper));

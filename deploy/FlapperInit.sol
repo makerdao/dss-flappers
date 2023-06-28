@@ -23,6 +23,9 @@ interface FlapperUniV2Like {
     function vat() external view returns (address);
     function daiJoin() external view returns (address);
     function spotter() external view returns (address);
+    function pip() external view returns (address);
+    function pair() external view returns (address);
+    function gem() external view returns (address);
     function rely(address) external;
     function file(bytes32, uint256) external;
     function file(bytes32, address) external;
@@ -38,6 +41,11 @@ interface OracleWrapperLike {
 
 interface PipLike {
     function kiss(address) external;
+}
+
+interface PairLike {
+    function token0() external view returns (address);
+    function token1() external view returns (address);
 }
 
 struct FlapperUniV2Config {
@@ -64,6 +72,12 @@ library FlapperInit {
         require(flapper.daiJoin() == address(dss.daiJoin), "Flapper daiJoin mismatch");
         require(flapper.spotter() == address(dss.spotter), "Flapper spotter mismatch");
 
+        PairLike pair = PairLike(flapper.pair());
+        (address pairDai, address pairGem) = pair.token0() == address(dss.dai) ? (pair.token0(), pair.token1())
+                                                                               : (pair.token1(), pair.token0());
+        require(pairDai == address(dss.dai), "Dai mismatch");
+        require(pairGem == flapper.gem(),    "Gem mismatch");
+
         require(cfg.hop >= 5 minutes, "hop too low");
         require(cfg.want >= WAD * 90 / 100, "want too low");
         require(cfg.hump > 0, "hump too low");
@@ -82,6 +96,10 @@ library FlapperInit {
 
         dss.chainlog.setAddress("MCD_FLAP",    address(flapper));
         dss.chainlog.setAddress("FLAPPER_MOM", address(mom));
+    }
+
+    function initDirectOracle(address flapper) internal {
+        PipLike(FlapperUniV2Like(flapper).pip()).kiss(flapper);
     }
 
     function initOracleWrapper(DssInstance memory dss, address wrapper, bytes32 clKey) internal {
