@@ -25,5 +25,4 @@ Allows for scaling down an oracle price by a certain value. This can be useful w
 
 * As a `kick` operation also withdraws `DAI` for depositing in the pool (and not only for swapping), it can in practice reduce the Surplus Buffer to below `vow.bump`.
 
-* Although the Flapper interface is conformant with the Emergency Shutdown procedure and will stop operating when it is triggered, LP tokens already sent to the receiver do not have special redeeming handling.
-
+* Although the Flapper interface is conformant with the Emergency Shutdown procedure and will stop operating when it is triggered, LP tokens already sent to the receiver do not have special redeeming handling. Therefor, in case the Pause Proxy is the receiver and governance does not control it, the LP tokens can be lost or attained by a governance attack.
