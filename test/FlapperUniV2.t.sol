@@ -106,7 +106,7 @@ contract FlapperUniV2Test is DssTest {
     EndLike     end;
     SpotterLike spotter;
 
-    address     constant  LOG           = 0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F;
+    address constant LOG                 = 0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F;
 
     address constant UNIV2_FACTORY       = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address constant UNIV2_DAI_MKR_PAIR  = 0x517F9dD285e75b599234F7221227339478d0FcC8;
