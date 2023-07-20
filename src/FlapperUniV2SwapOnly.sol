@@ -33,7 +33,6 @@ interface SpotterLike {
 
 interface GemLike {
     function decimals() external view returns (uint8);
-    function balanceOf(address) external view returns (uint256);
 }
 
 interface PipLike {
@@ -46,7 +45,6 @@ interface PairLike {
     function token0() external view returns (address);
     function mint(address to) external returns (uint256 liquidity);
     function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
-    function sync() external;
 }
 
 contract FlapperUniV2SwapOnly {
@@ -132,16 +130,9 @@ contract FlapperUniV2SwapOnly {
         emit File(what, data);
     }
 
-    function _getReserves() internal returns (uint256 reserveDai, uint256 reserveGem) {
+    function _getReserves() internal view returns (uint256 reserveDai, uint256 reserveGem) {
         (uint256 _reserveA, uint256 _reserveB,) = pair.getReserves();
         (reserveDai, reserveGem) = daiFirst ? (_reserveA, _reserveB) : (_reserveB, _reserveA);
-
-        uint256 _daiBalance = GemLike(dai).balanceOf(address(pair));
-        uint256 _gemBalance = GemLike(gem).balanceOf(address(pair));
-        if (_daiBalance > reserveDai || _gemBalance > reserveGem) {
-            pair.sync();
-            (reserveDai, reserveGem) = (_daiBalance, _gemBalance);
-        }
     }
 
     // Based on: https://github.com/Uniswap/v2-periphery/blob/0335e8f7e1bd1e8d8329fd300aea2ef2f36dd19f/contracts/libraries/UniswapV2Library.sol#L43
