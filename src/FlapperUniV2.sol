@@ -43,10 +43,10 @@ interface PipLike {
 
 // https://github.com/Uniswap/v2-core/blob/ee547b17853e71ed4e0101ccfd52e70d5acded58/contracts/UniswapV2Pair.sol
 interface PairLike {
-    function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
+    function getReserves() external view returns (uint112, uint112, uint32);
     function token0() external view returns (address);
-    function mint(address to) external returns (uint256 liquidity);
-    function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
+    function mint(address) external returns (uint256);
+    function swap(uint256, uint256, address, bytes calldata) external;
     function sync() external;
 }
 
