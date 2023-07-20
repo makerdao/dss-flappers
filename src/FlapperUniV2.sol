@@ -17,7 +17,6 @@
 pragma solidity ^0.8.16;
 
 interface VatLike {
-    function live() external view returns (uint256);
     function hope(address) external;
     function move(address, address, uint256) external;
 }
