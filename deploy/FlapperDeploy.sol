@@ -21,6 +21,7 @@ import { ScriptTools } from "dss-test/ScriptTools.sol";
 
 import { FlapperInstance } from "./FlapperInstance.sol";
 import { FlapperUniV2 } from "src/FlapperUniV2.sol";
+import { FlapperUniV2SwapOnly } from "src/FlapperUniV2SwapOnly.sol";
 import { FlapperMom } from "src/FlapperMom.sol";
 import { OracleWrapper } from "src/OracleWrapper.sol";
 
@@ -34,9 +35,13 @@ library FlapperDeploy {
         address spotter,
         address gem,
         address pair,
-        address receiver
+        address receiver,
+        bool    swapOnly
     ) internal returns (FlapperInstance memory flapperInstance) {
-        address _flapper = address(new FlapperUniV2(daiJoin, spotter, gem, pair, receiver));
+        address _flapper =
+            swapOnly ? address(new FlapperUniV2SwapOnly(daiJoin, spotter, gem, pair, receiver))
+                     : address(new FlapperUniV2(daiJoin, spotter, gem, pair, receiver))
+        ;
         address _mom = address(new FlapperMom(_flapper));
 
         ScriptTools.switchOwner(_flapper, deployer, owner);
