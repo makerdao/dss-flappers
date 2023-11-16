@@ -70,7 +70,8 @@ contract FlapperMomTest is Test {
             spotter:  SPOT,
             gem:      MKR,
             pair:     UNIV2_DAI_MKR_PAIR,
-            receiver: PAUSE_PROXY
+            receiver: PAUSE_PROXY,
+            swapOnly: false
         });
         flapper = FlapperUniV2(flapperInstance.flapper);
         mom = FlapperMom(flapperInstance.mom);
