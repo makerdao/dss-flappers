@@ -211,6 +211,7 @@ rule kick(uint256 lot, uint256 a) {
 
     mathint want = want();
     require want == 980000000000000000;
+    address receiver = receiver();
 
     mathint vatDaiSenderBefore = vat.dai(e.msg.sender);
     mathint pairReservesDaiBefore; mathint pairReservesMkrBefore; mathint b;
@@ -221,7 +222,6 @@ rule kick(uint256 lot, uint256 a) {
     require mkrBalanceOfPairBefore > WAD();
     require daiBalanceOfPairBefore / mkrBalanceOfPairBefore >= 100;
     require daiBalanceOfPairBefore / mkrBalanceOfPairBefore <= 10000;
-    address receiver = receiver();
     mathint pairBalanceOfReceiverBefore = pair.balanceOf(receiver);
     mathint pairTotalSupplyBefore = pair.totalSupply();
 
@@ -267,6 +267,7 @@ rule kick_revert(uint256 lot, uint256 a) {
     mathint zzz = zzz();
     mathint hop = hop();
     mathint want = want();
+    address receiver = receiver();
 
     mathint vatDaiSender = vat.dai(e.msg.sender);
     mathint vatDaiFlapper = vat.dai(currentContract);
@@ -278,7 +279,6 @@ rule kick_revert(uint256 lot, uint256 a) {
     mathint daiBalanceOfPair = dai.balanceOf(pair);
     mathint mkrBalanceOfPair = mkr.balanceOf(pair);
     mathint mkrBalanceOfFlapper = mkr.balanceOf(currentContract);
-    address receiver = receiver();
     mathint pairBalanceOfReceiver = pair.balanceOf(receiver);
     mathint pairTotalSupply = pair.totalSupply();
 
