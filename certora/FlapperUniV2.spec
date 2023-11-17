@@ -42,6 +42,38 @@ definition WAD() returns mathint = 10^18;
 definition RAY() returns mathint = 10^27;
 definition maxuint112() returns mathint = 2^112 - 1;
 
+// Verify that each storage layout is only modified in the corresponding functions
+rule storageAffected(method f) {
+    env e;
+
+    address anyAddr;
+    bytes32 anyBytes32;
+
+    mathint wardsBefore = wards(anyAddr);
+    mathint liveBefore = live();
+    address pipBefore = pip();
+    mathint hopBefore = hop();
+    mathint zzzBefore = zzz();
+    mathint wantBefore = want();
+
+    calldataarg args;
+    f(e, args);
+
+    mathint wardsAfter = wards(anyAddr);
+    mathint liveAfter = live();
+    address pipAfter = pip();
+    mathint hopAfter = hop();
+    mathint zzzAfter = zzz();
+    mathint wantAfter = want();
+
+    assert wardsAfter != wardsBefore => f.selector == sig:rely(address).selector || f.selector == sig:deny(address).selector, "wards[x] changed in an unexpected function";
+    assert liveAfter != liveBefore => f.selector == sig:cage(uint256).selector, "live changed in an unexpected function";
+    assert pipAfter != pipBefore => f.selector == sig:file(bytes32,address).selector, "pip changed in an unexpected function";
+    assert hopAfter != hopBefore => f.selector == sig:file(bytes32,uint256).selector, "hop changed in an unexpected function";
+    assert zzzAfter != zzzBefore => f.selector == sig:kick(uint256,uint256).selector, "zzz changed in an unexpected function";
+    assert wantAfter != wantBefore => f.selector == sig:file(bytes32,uint256).selector, "want changed in an unexpected function";
+}
+
 // Verify correct storage changes for non reverting rely
 rule rely(address usr) {
     env e;
@@ -50,29 +82,14 @@ rule rely(address usr) {
     require other != usr;
 
     mathint wardsOtherBefore = wards(other);
-    mathint liveBefore = live();
-    address pipBefore = pip();
-    mathint hopBefore = hop();
-    mathint zzzBefore = zzz();
-    mathint wantBefore = want();
 
     rely(e, usr);
 
     mathint wardsUsrAfter = wards(usr);
     mathint wardsOtherAfter = wards(other);
-    mathint liveAfter = live();
-    address pipAfter = pip();
-    mathint hopAfter = hop();
-    mathint zzzAfter = zzz();
-    mathint wantAfter = want();
 
     assert wardsUsrAfter == 1, "rely did not set the wards";
     assert wardsOtherAfter == wardsOtherBefore, "rely did not keep unchanged the rest of wards[x]";
-    assert liveAfter == liveBefore, "rely did not keep unchanged live";
-    assert pipAfter == pipBefore, "rely did not keep unchanged pip";
-    assert hopAfter == hopBefore, "rely did not keep unchanged hop";
-    assert zzzAfter == zzzBefore, "rely did not keep unchanged zzz";
-    assert wantAfter == wantBefore, "rely did not keep unchanged want";
 }
 
 // Verify revert rules on rely
@@ -86,9 +103,7 @@ rule rely_revert(address usr) {
     bool revert1 = e.msg.value > 0;
     bool revert2 = wardsSender != 1;
 
-    assert revert1 => lastReverted, "revert1 failed";
-    assert revert2 => lastReverted, "revert2 failed";
-    assert lastReverted => revert1 || revert2, "Revert rules are not covering all the cases";
+    assert lastReverted <=> revert1 || revert2, "Revert rules failed";
 }
 
 // Verify correct storage changes for non reverting deny
@@ -97,32 +112,16 @@ rule deny(address usr) {
 
     address other;
     require other != usr;
-    address anyUsr; address anyUsr2;
 
     mathint wardsOtherBefore = wards(other);
-    mathint liveBefore = live();
-    address pipBefore = pip();
-    mathint hopBefore = hop();
-    mathint zzzBefore = zzz();
-    mathint wantBefore = want();
 
     deny(e, usr);
 
     mathint wardsUsrAfter = wards(usr);
     mathint wardsOtherAfter = wards(other);
-    mathint liveAfter = live();
-    address pipAfter = pip();
-    mathint hopAfter = hop();
-    mathint zzzAfter = zzz();
-    mathint wantAfter = want();
 
     assert wardsUsrAfter == 0, "deny did not set the wards";
     assert wardsOtherAfter == wardsOtherBefore, "deny did not keep unchanged the rest of wards[x]";
-    assert liveAfter == liveBefore, "deny did not keep unchanged live";
-    assert pipAfter == pipBefore, "deny did not keep unchanged pip";
-    assert hopAfter == hopBefore, "deny did not keep unchanged hop";
-    assert zzzAfter == zzzBefore, "deny did not keep unchanged zzz";
-    assert wantAfter == wantBefore, "deny did not keep unchanged want";
 }
 
 // Verify revert rules on deny
@@ -136,9 +135,66 @@ rule deny_revert(address usr) {
     bool revert1 = e.msg.value > 0;
     bool revert2 = wardsSender != 1;
 
-    assert revert1 => lastReverted, "revert1 failed";
-    assert revert2 => lastReverted, "revert2 failed";
-    assert lastReverted => revert1 || revert2, "Revert rules are not covering all the cases";
+    assert lastReverted <=> revert1 || revert2, "Revert rules failed";
+}
+
+// Verify correct storage changes for non reverting file
+rule file_uint256(bytes32 what, uint256 data) {
+    env e;
+
+    uint256 hopBefore = hop();
+    uint256 wantBefore = want();
+
+    file(e, what, data);
+
+    uint256 hopAfter = hop();
+    uint256 wantAfter = want();
+
+    assert what == to_bytes32(0x686f700000000000000000000000000000000000000000000000000000000000) => hopAfter == data, "file did not set hop";
+    assert what != to_bytes32(0x686f700000000000000000000000000000000000000000000000000000000000) => hopAfter == hopBefore, "file did keep unchanged hop";
+    assert what == to_bytes32(0x77616e7400000000000000000000000000000000000000000000000000000000) => wantAfter == data, "file did not set want";
+    assert what != to_bytes32(0x77616e7400000000000000000000000000000000000000000000000000000000) => wantAfter == wantBefore, "file did keep unchanged want";
+}
+
+// Verify revert rules on file
+rule file_uint256_revert(bytes32 what, uint256 data) {
+    env e;
+
+    mathint wardsSender = wards(e.msg.sender);
+
+    file@withrevert(e, what, data);
+
+    bool revert1 = e.msg.value > 0;
+    bool revert2 = wardsSender != 1;
+    bool revert3 = what != to_bytes32(0x686f700000000000000000000000000000000000000000000000000000000000) && what != to_bytes32(0x77616e7400000000000000000000000000000000000000000000000000000000);
+
+    assert lastReverted <=> revert1 || revert2 || revert3, "Revert rules failed";
+}
+
+// Verify correct storage changes for non reverting file
+rule file_address(bytes32 what, address data) {
+    env e;
+
+    file(e, what, data);
+
+    address pipAfter = pip();
+
+    assert pipAfter == data, "file did not set pip";
+}
+
+// Verify revert rules on file
+rule file_address_revert(bytes32 what, address data) {
+    env e;
+
+    mathint wardsSender = wards(e.msg.sender);
+
+    file@withrevert(e, what, data);
+
+    bool revert1 = e.msg.value > 0;
+    bool revert2 = wardsSender != 1;
+    bool revert3 = what != to_bytes32(0x7069700000000000000000000000000000000000000000000000000000000000);
+
+    assert lastReverted <=> revert1 || revert2 || revert3, "Revert rules failed";
 }
 
 definition getTotalDai(mathint wlot, mathint reserveDai) returns mathint = wlot * (997 * wlot + 1997 * reserveDai) / (1000 * reserveDai);
@@ -267,67 +323,26 @@ rule kick_revert(uint256 lot, uint256 a) {
     bool revert22 = daiBalanceOfPair + totalDai > max_uint256;
     bool revert23 = mkrBalanceOfPair + bought > max_uint256;
 
-    assert revert1  => lastReverted, "revert1 failed";
-    assert revert2  => lastReverted, "revert2 failed";
-    assert revert3  => lastReverted, "revert3 failed";
-    assert revert4  => lastReverted, "revert4 failed";
-    assert revert5  => lastReverted, "revert5 failed";
-    assert revert6  => lastReverted, "revert6 failed";
-    assert revert7  => lastReverted, "revert7 failed";
-    assert revert8  => lastReverted, "revert8 failed";
-    assert revert9  => lastReverted, "revert9 failed";
-    assert revert10 => lastReverted, "revert10 failed";
-    assert revert11 => lastReverted, "revert11 failed";
-    assert revert12 => lastReverted, "revert12 failed";
-    assert revert13 => lastReverted, "revert13 failed";
-    assert revert14 => lastReverted, "revert14 failed";
-    assert revert15 => lastReverted, "revert15 failed";
-    assert revert16 => lastReverted, "revert16 failed";
-    assert revert17 => lastReverted, "revert17 failed";
-    assert revert18 => lastReverted, "revert18 failed";
-    assert revert19 => lastReverted, "revert19 failed";
-    assert revert20 => lastReverted, "revert20 failed";
-    assert revert21 => lastReverted, "revert21 failed";
-    assert revert22 => lastReverted, "revert22 failed";
-    assert revert23 => lastReverted, "revert23 failed";
-    assert lastReverted => revert1  || revert2  || revert3  ||
-                           revert4  || revert5  || revert6  ||
-                           revert7  || revert8  || revert9  ||
-                           revert10 || revert11 || revert12 ||
-                           revert13 || revert14 || revert15 ||
-                           revert16 || revert17 || revert18 ||
-                           revert19 || revert20 || revert21 ||
-                           revert22 || revert23, "Revert rules are not covering all the cases";
+    assert lastReverted <=> revert1  || revert2  || revert3  ||
+                            revert4  || revert5  || revert6  ||
+                            revert7  || revert8  || revert9  ||
+                            revert10 || revert11 || revert12 ||
+                            revert13 || revert14 || revert15 ||
+                            revert16 || revert17 || revert18 ||
+                            revert19 || revert20 || revert21 ||
+                            revert22 || revert23, "Revert rules failed";
 }
 
 // Verify correct storage changes for non reverting cage
 rule cage() {
     env e;
 
-    address anyUsr;
-
-    mathint wardsBefore = wards(anyUsr);
-    address pipBefore = pip();
-    mathint hopBefore = hop();
-    mathint zzzBefore = zzz();
-    mathint wantBefore = want();
-
     uint256 random;
     cage(e, random);
 
-    mathint wardsAfter = wards(anyUsr);
     mathint liveAfter = live();
-    address pipAfter = pip();
-    mathint hopAfter = hop();
-    mathint zzzAfter = zzz();
-    mathint wantAfter = want();
 
-    assert wardsAfter == wardsBefore, "cage did not keep unchanged every wards[x]";
     assert liveAfter == 0, "cage did not set live to 0";
-    assert pipAfter == pipBefore, "cage did not keep unchanged pip";
-    assert hopAfter == hopBefore, "cage did not keep unchanged hop";
-    assert zzzAfter == zzzBefore, "cage did not keep unchanged zzz";
-    assert wantAfter == wantBefore, "cage did not keep unchanged want";
 }
 
 // Verify revert rules on cage
@@ -342,7 +357,5 @@ rule cage_revert() {
     bool revert1 = e.msg.value > 0;
     bool revert2 = wardsSender != 1;
 
-    assert revert1 => lastReverted, "revert1 failed";
-    assert revert2 => lastReverted, "revert2 failed";
-    assert lastReverted => revert1 || revert2, "Revert rules are not covering all the cases";
+    assert lastReverted <=> revert1 || revert2, "Revert rules failed";
 }
