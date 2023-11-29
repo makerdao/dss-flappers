@@ -24,6 +24,7 @@ import { FlapperUniV2 } from "src/FlapperUniV2.sol";
 import { FlapperUniV2SwapOnly } from "src/FlapperUniV2SwapOnly.sol";
 import { FlapperMom } from "src/FlapperMom.sol";
 import { OracleWrapper } from "src/OracleWrapper.sol";
+import { Splitter } from "src/Splitter.sol";
 
 // Deploy a Flapper instance
 library FlapperDeploy {
@@ -57,5 +58,15 @@ library FlapperDeploy {
         uint256 divisor
     ) internal returns (address wrapper) {
         wrapper = address(new OracleWrapper(pip, flapper, divisor));
+    }
+
+    function deploySplitter(
+        address deployer,
+        address owner,
+        address daiJoin,
+        address farm
+    ) internal returns (address splitter) {
+        splitter = address(new Splitter(daiJoin, farm));
+        ScriptTools.switchOwner(splitter, deployer, owner);
     }
 }

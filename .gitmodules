@@ -1,3 +1,6 @@
 [submodule "lib/dss-test"]
 	path = lib/dss-test
 	url = https://github.com/makerdao/dss-test
+[submodule "lib/endgame-toolkit"]
+	path = lib/endgame-toolkit
+	url = https://github.com/dewiz-xyz/endgame-toolkit

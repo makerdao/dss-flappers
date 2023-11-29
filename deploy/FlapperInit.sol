@@ -48,6 +48,19 @@ interface PairLike {
     function token1() external view returns (address);
 }
 
+interface SplitterLike {
+    function vat() external view returns (address);
+    function daiJoin() external view returns (address);
+    function farm() external view returns (address);
+    function rely(address) external;
+    function file(bytes32, uint256) external;
+    function file(bytes32, address) external;
+}
+
+interface FarmLike {
+    function setRewardsDistribution(address) external;
+}
+
 struct FlapperUniV2Config {
     uint256 hop;
     uint256 want;
@@ -56,14 +69,19 @@ struct FlapperUniV2Config {
     uint256 bump;
 }
 
+struct SplitterConfig {
+    address splitter;
+    uint256 burn;
+}
+
 library FlapperInit {
     uint256 constant WAD = 10 ** 18;
 
-    function initFlapperUniV2(
+    function _initFlapperUniV2(
         DssInstance        memory dss,
         FlapperInstance    memory flapperInstance,
         FlapperUniV2Config memory cfg
-    ) internal {
+    ) private {
         FlapperUniV2Like flapper = FlapperUniV2Like(flapperInstance.flapper);
         FlapperMomLike   mom     = FlapperMomLike(flapperInstance.mom);
 
@@ -85,16 +103,13 @@ library FlapperInit {
         flapper.file("hop",  cfg.hop);
         flapper.file("want", cfg.want);
         flapper.file("pip",  cfg.pip);
-        flapper.rely(address(dss.vow));
         flapper.rely(address(mom));
 
-        dss.vow.file("flapper", address(flapper));
         dss.vow.file("hump",    cfg.hump);
         dss.vow.file("bump",    cfg.bump);
 
         mom.setAuthority(dss.chainlog.getAddress("MCD_ADM"));
 
-        dss.chainlog.setAddress("MCD_FLAP",    address(flapper));
         dss.chainlog.setAddress("FLAPPER_MOM", address(mom));
     }
 
@@ -105,5 +120,48 @@ library FlapperInit {
     function initOracleWrapper(DssInstance memory dss, address wrapper, bytes32 clKey) internal {
         PipLike(OracleWrapperLike(wrapper).pip()).kiss(wrapper);
         dss.chainlog.setAddress(clKey, wrapper);
+    }
+
+    function initFlapperUniV2(
+        DssInstance        memory dss,
+        FlapperInstance    memory flapperInstance,
+        FlapperUniV2Config memory cfg
+    ) internal {
+        _initFlapperUniV2(dss, flapperInstance, cfg);
+
+        // Wire flapper with vow
+        FlapperUniV2Like flapper = FlapperUniV2Like(flapperInstance.flapper);
+        flapper.rely(address(dss.vow));
+        dss.vow.file("flapper", address(flapper));
+
+        dss.chainlog.setAddress("MCD_FLAP", address(flapper));
+    }
+
+    function initFlapperUniV2WithSplitter(        
+        DssInstance memory dss,
+        FlapperInstance    memory flapperInstance,
+        FlapperUniV2Config memory cfg,
+        SplitterConfig     memory splitterCfg
+    ) internal {
+        _initFlapperUniV2(dss, flapperInstance, cfg);
+
+        // Sanity checks
+        SplitterLike splitter = SplitterLike(splitterCfg.splitter);
+        require(splitter.vat()     == address(dss.vat),     "Splitter vat mismatch");
+        require(splitter.daiJoin() == address(dss.daiJoin), "Splitter daiJoin mismatch");
+
+        require(splitterCfg.burn <= WAD, "Splitter burn too high");
+
+        splitter.file("burn", splitterCfg.burn);
+        FarmLike(splitter.farm()).setRewardsDistribution(address(splitter));
+
+        // Wire flapper with splitter and splitter with vow
+        FlapperUniV2Like flapper = FlapperUniV2Like(flapperInstance.flapper);
+        flapper.rely(address(splitter));
+        splitter.rely(address(dss.vow));
+        splitter.file("flapper", address(flapper));
+        dss.vow.file("flapper", address(splitter));
+
+        dss.chainlog.setAddress("MCD_FLAP", address(splitter));
     }
 }
