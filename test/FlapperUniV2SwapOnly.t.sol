@@ -178,7 +178,9 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
             want : WAD * 97 / 100,
             pip  : address(_medianizer),
             hump : 50_000_000 * RAD,
-            bump : 5707 * RAD
+            bump : 5707 * RAD,
+            caller: address(vow),
+            chainlogKey: "MCD_FLAP_BURN"
         });
 
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
@@ -186,6 +188,7 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         FlapperInit.initDirectOracle(address(_flapper));
         vm.stopPrank();
 
+        assertEq(dss.chainlog.getAddress("MCD_FLAP_BURN"), address(flapperInstance.flapper));
         assertEq(dss.chainlog.getAddress("MCD_FLAP"), address(flapperInstance.flapper));
         assertEq(dss.chainlog.getAddress("FLAPPER_MOM"), address(flapperInstance.mom));
 
