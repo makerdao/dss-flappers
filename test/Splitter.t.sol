@@ -243,7 +243,7 @@ contract SplitterTest is DssTest {
         uint256 initialReserveMkr = GemLike(MKR).balanceOf(UNIV2_DAI_MKR_PAIR);
         uint256 initialFarmDai = GemLike(DAI).balanceOf(address(farm));
         uint256 prevRewardRate = farm.rewardRate();
-        uint256 farmLeftover = farm.rewardRate() > 0 ? farm.rewardRate() * (farm.periodFinish() - block.timestamp) : 0;
+        uint256 farmLeftover = block.timestamp >= farm.periodFinish() ? 0 : farm.rewardRate() * (farm.periodFinish() - block.timestamp);
         uint256 farmReward = vow.bump() * (WAD - splitter.burn()) / RAD;
         uint256 prevLastUpdateTime = farm.lastUpdateTime();
 
@@ -351,6 +351,22 @@ contract SplitterTest is DssTest {
         vm.prank(PAUSE_PROXY); splitter.file("flapper", address(0));
         vm.expectRevert(bytes(""));
         vow.flap();
+    }
+
+    function testChangeRewardDuration() public {
+        assertEq(flapper.hop(), farm.rewardsDuration());
+
+        doKick(); // sets periodFinish to now + rewardsDuration
+
+        vm.expectRevert("Previous rewards period must be complete before changing the duration for the new period");
+        vm.prank(PAUSE_PROXY); farm.setRewardsDuration(666 minutes); 
+
+        vm.prank(PAUSE_PROXY); splitter.file("burn", WAD);
+
+        vm.warp(block.timestamp + farm.rewardsDuration() + 1);
+        doKick();
+
+        vm.prank(PAUSE_PROXY); farm.setRewardsDuration(666 minutes); // should not revert
     }
 
     function testCageFlapperNotSet() public {
