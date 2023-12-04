@@ -242,8 +242,10 @@ contract SplitterTest is DssTest {
         uint256 initialReserveDai = GemLike(DAI).balanceOf(UNIV2_DAI_MKR_PAIR);
         uint256 initialReserveMkr = GemLike(MKR).balanceOf(UNIV2_DAI_MKR_PAIR);
         uint256 initialFarmDai = GemLike(DAI).balanceOf(address(farm));
+        uint256 prevRewardRate = farm.rewardRate();
         uint256 farmLeftover = farm.rewardRate() > 0 ? farm.rewardRate() * (farm.periodFinish() - block.timestamp) : 0;
-        uint256 farmReward = vow.bump() * (WAD - BURN) / RAD;
+        uint256 farmReward = vow.bump() * (WAD - splitter.burn()) / RAD;
+        uint256 prevLastUpdateTime = farm.lastUpdateTime();
 
         vm.expectEmit(false, false, false, false); // only check event signature (topic 0)
         emit Kick(0, 0);
@@ -253,13 +255,13 @@ contract SplitterTest is DssTest {
         assertEq(vat.dai(DAI_JOIN), initialDaiJoinVatDai + vow.bump());
         assertEq(vat.dai(address(splitter)), 0);
 
-        assertEq(GemLike(DAI).balanceOf(UNIV2_DAI_MKR_PAIR), initialReserveDai + vow.bump() * BURN / RAD);
+        assertEq(GemLike(DAI).balanceOf(UNIV2_DAI_MKR_PAIR), initialReserveDai + vow.bump() * splitter.burn() / RAD);
         assertLt(GemLike(MKR).balanceOf(UNIV2_DAI_MKR_PAIR), initialReserveMkr);
         assertGt(GemLike(MKR).balanceOf(address(PAUSE_PROXY)), initialMkr);
 
         assertEq(GemLike(DAI).balanceOf(address(farm)), initialFarmDai + farmReward);
-        assertEq(farm.rewardRate(), (farmLeftover + farmReward) / 7 days);
-        assertEq(farm.lastUpdateTime(), block.timestamp); 
+        assertEq(farm.rewardRate(), splitter.burn() == WAD ? prevRewardRate : (farmLeftover + farmReward) / farm.rewardsDuration());
+        assertEq(farm.lastUpdateTime(), splitter.burn() == WAD ? prevLastUpdateTime : block.timestamp); 
     }
 
     function testConstructor() public {
@@ -309,6 +311,18 @@ contract SplitterTest is DssTest {
     }
 
     function testKick() public {
+        doKick();
+    }
+
+    function testKickBurnOnly() public {
+        doKick();
+        vm.warp(block.timestamp + flapper.hop());
+
+        vm.prank(PAUSE_PROXY); splitter.file("burn", WAD);
+
+        // make sure the slippage of the first kick doesn't block us
+        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
+        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
         doKick();
     }
 

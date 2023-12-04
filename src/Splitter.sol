@@ -42,9 +42,9 @@ contract Splitter {
     VatLike     public immutable vat;
     DaiJoinLike public immutable daiJoin;
     FarmLike    public immutable farm;
+    FlapLike    public           flapper;
+    uint256     public           burn; // in WAD; 1 WAD = 100% burn
 
-    FlapLike public flapper;
-    uint256  public burn; // in WAD; 1 WAD = 100% burn
 
     event Rely(address indexed usr);
     event Deny(address indexed usr);
@@ -99,10 +99,12 @@ contract Splitter {
         uint256 lot = tot * burn / WAD;
         flapper.kick(lot, 0);
 
-        FarmLike farm_ = farm;
-        uint256 pay = (tot - lot) / RAY;
-        DaiJoinLike(daiJoin).exit(address(farm_), pay);
-        farm_.notifyRewardAmount(pay);
+        if (tot - lot >= RAY) {
+            FarmLike farm_ = farm;
+            uint256 pay = (tot - lot) / RAY;
+            DaiJoinLike(daiJoin).exit(address(farm_), pay);
+            farm_.notifyRewardAmount(pay);
+        }
 
         return 0;
     }
