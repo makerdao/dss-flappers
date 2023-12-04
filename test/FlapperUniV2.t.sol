@@ -174,12 +174,14 @@ contract FlapperUniV2Test is DssTest {
         // Note - this part emulates the spell initialization
         vm.startPrank(PAUSE_PROXY);
         FlapperUniV2Config memory cfg = FlapperUniV2Config({
-            hop     : 30 minutes,
-            want    : WAD * 97 / 100,
-            pip     : address(_medianizer),
-            hump    : 50_000_000 * RAD,
-            bump    : 5707 * RAD,
-            daiJoin : DAI_JOIN
+            hop  : 30 minutes,
+            want : WAD * 97 / 100,
+            pip  : address(_medianizer),
+            hump : 50_000_000 * RAD,
+            bump : 5707 * RAD,
+            daiJoin : DAI_JOIN,
+            caller: address(vow),
+            chainlogKey: "MCD_FLAP_LP"
         });
 
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
@@ -187,6 +189,7 @@ contract FlapperUniV2Test is DssTest {
         FlapperInit.initDirectOracle(address(_flapper));
         vm.stopPrank();
 
+        assertEq(dss.chainlog.getAddress("MCD_FLAP_LP"), address(flapperInstance.flapper));
         assertEq(dss.chainlog.getAddress("MCD_FLAP"), address(flapperInstance.flapper));
         assertEq(dss.chainlog.getAddress("FLAPPER_MOM"), address(flapperInstance.mom));
 

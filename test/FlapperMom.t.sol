@@ -42,6 +42,7 @@ contract FlapperMomTest is Test {
 
     address DAI_JOIN;
     address SPOT;
+    address VOW;
     address MKR;
     address PAUSE_PROXY;
     ChiefLike chief;
@@ -59,6 +60,7 @@ contract FlapperMomTest is Test {
 
         DAI_JOIN          = ChainlogLike(LOG).getAddress("MCD_JOIN_DAI");
         SPOT              = ChainlogLike(LOG).getAddress("MCD_SPOT");
+        VOW               = ChainlogLike(LOG).getAddress("MCD_VOW");
         MKR               = ChainlogLike(LOG).getAddress("MCD_GOV");
         PAUSE_PROXY       = ChainlogLike(LOG).getAddress("MCD_PAUSE_PROXY");
         chief             = ChiefLike(ChainlogLike(LOG).getAddress("MCD_ADM"));
@@ -78,12 +80,14 @@ contract FlapperMomTest is Test {
 
         // use random values
         FlapperUniV2Config memory cfg = FlapperUniV2Config({
-            hop:     5 minutes,
-            want:    1e18,
-            pip:     address(0),
-            hump:    1,
-            bump:    0,
-            daiJoin: DAI_JOIN
+            hop:  5 minutes,
+            want: 1e18,
+            pip:  address(0),
+            hump: 1,
+            bump: 0,
+            daiJoin: DAI_JOIN,
+            caller: VOW,
+            chainlogKey: "MCD_FLAP_LP"
         });
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
 

@@ -141,24 +141,28 @@ contract SplitterTest is DssTest {
         
         vm.startPrank(PAUSE_PROXY);
         // Note - this part emulates the spell initialization
-        FlapperUniV2Config memory cfg = FlapperUniV2Config({
-            hop:     30 minutes,
-            want:    WAD * 97 / 100,
-            pip:     address(medianizer),
-            hump:    50_000_000 * RAD,
-            bump:    5707 * RAD,
-            daiJoin: DAI_JOIN
+        FlapperUniV2Config memory flapperCfg = FlapperUniV2Config({
+            hop  : 30 minutes,
+            want : WAD * 97 / 100,
+            pip  : address(medianizer),
+            hump : 50_000_000 * RAD,
+            bump : 5707 * RAD,
+            daiJoin: DAI_JOIN,
+            caller: address(splitter),
+            chainlogKey: "MCD_FLAP_BURN"
         });
         SplitterConfig memory splitterCfg = SplitterConfig({
-            splitter: address(splitter),
-            burn : BURN
+            burn : BURN,
+            rewardsDuration: flapperCfg.hop
         });
 
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
-        FlapperInit.initFlapperUniV2WithSplitter(dss, flapperInstance, cfg, splitterCfg);
+        FlapperInit.initFlapperUniV2(dss, flapperInstance, flapperCfg);
+        FlapperInit.initSplitter(dss, address(splitter), splitterCfg);
         FlapperInit.initDirectOracle(address(flapper));
         vm.stopPrank();
 
+        assertEq(dss.chainlog.getAddress("MCD_FLAP_BURN"), address(flapper));
         assertEq(dss.chainlog.getAddress("MCD_FLAP"), address(splitter));
         assertEq(dss.chainlog.getAddress("FLAPPER_MOM"), address(flapperInstance.mom));
 
