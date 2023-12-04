@@ -20,7 +20,7 @@ import "dss-test/DssTest.sol";
 import { Splitter } from "src/Splitter.sol";
 import { FlapperUniV2SwapOnly } from "src/FlapperUniV2SwapOnly.sol";
 import { StakingRewardsMock } from "test/mocks/StakingRewardsMock.sol";
-import { SampleToken } from "lib/endgame-toolkit/lib/token-tests/src/tests/SampleToken.sol";
+import { GemMock } from "test/mocks/GemMock.sol";
 import "./helpers/UniswapV2Library.sol";
 
 import { FlapperInstance } from "deploy/FlapperInstance.sol";
@@ -76,7 +76,7 @@ contract SplitterTest is DssTest {
     StakingRewardsMock   public farm;
     FlapperUniV2SwapOnly public flapper;
     PipLike              public medianizer;
-    SampleToken          public stakingToken;
+    GemMock              public stakingToken;
 
     address     DAI_JOIN;
     address     SPOT;
@@ -114,7 +114,7 @@ contract SplitterTest is DssTest {
 
         medianizer.kiss(address(this));
 
-        stakingToken = new SampleToken();
+        stakingToken = new GemMock(1_000_000 ether);
         farm = new StakingRewardsMock(PAUSE_PROXY, address(0), DAI, address(stakingToken));
 
         vm.stopPrank();
