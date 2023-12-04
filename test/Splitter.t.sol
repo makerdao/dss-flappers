@@ -19,7 +19,7 @@ pragma solidity ^0.8.16;
 import "dss-test/DssTest.sol";
 import { Splitter } from "src/Splitter.sol";
 import { FlapperUniV2SwapOnly } from "src/FlapperUniV2SwapOnly.sol";
-import { StakingRewards } from "lib/endgame-toolkit/src/synthetix/StakingRewards.sol";
+import { StakingRewardsMock } from "test/mocks/StakingRewardsMock.sol";
 import { SampleToken } from "lib/endgame-toolkit/lib/token-tests/src/tests/SampleToken.sol";
 import "./helpers/UniswapV2Library.sol";
 
@@ -73,7 +73,7 @@ contract SplitterTest is DssTest {
     using stdStorage for StdStorage;
 
     Splitter             public splitter;
-    StakingRewards       public farm;
+    StakingRewardsMock   public farm;
     FlapperUniV2SwapOnly public flapper;
     PipLike              public medianizer;
     SampleToken          public stakingToken;
@@ -115,7 +115,7 @@ contract SplitterTest is DssTest {
         medianizer.kiss(address(this));
 
         stakingToken = new SampleToken();
-        farm = new StakingRewards(PAUSE_PROXY, address(0), DAI, address(stakingToken));
+        farm = new StakingRewardsMock(PAUSE_PROXY, address(0), DAI, address(stakingToken));
 
         vm.stopPrank();
 
