@@ -170,7 +170,6 @@ contract StakingRewardsMock {
         if (block.timestamp < periodFinish_) {
             uint256 leftover = (periodFinish_ - block.timestamp) * rewardRate;
             rewardRate = leftover / _rewardsDuration;
-            lastUpdateTime = block.timestamp;
             periodFinish = block.timestamp + _rewardsDuration;
         }
 
