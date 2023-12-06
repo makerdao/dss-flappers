@@ -358,18 +358,11 @@ contract SplitterTest is DssTest {
 
     function testChangeRewardDuration() public {
         assertEq(flapper.hop(), farm.rewardsDuration());
-
         doKick(); // sets periodFinish to now + rewardsDuration
 
-        vm.expectRevert("Previous rewards period must be complete before changing the duration for the new period");
-        vm.prank(PAUSE_PROXY); farm.setRewardsDuration(666 minutes); 
+        vm.prank(PAUSE_PROXY); farm.setRewardsDuration(666 minutes);
 
-        vm.prank(PAUSE_PROXY); splitter.file("burn", WAD);
-
-        vm.warp(block.timestamp + farm.rewardsDuration() + 1);
-        doKick();
-
-        vm.prank(PAUSE_PROXY); farm.setRewardsDuration(666 minutes); // should not revert
+        assertEq(farm.rewardsDuration(), 666 minutes);
     }
 
     function testCageFlapperNotSet() public {
