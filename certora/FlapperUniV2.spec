@@ -206,6 +206,7 @@ rule kick(uint256 lot, uint256 a) {
     env e;
 
     require e.msg.sender != daiJoin;
+    require daiFirst();
 
     require lot > 0;
 
