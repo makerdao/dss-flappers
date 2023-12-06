@@ -38,13 +38,12 @@ interface FarmLike {
 
 contract Splitter {
     mapping (address => uint256) public wards;
+    FlapLike    public           flapper;
+    uint256     public           burn; // in WAD; 1 WAD = 100% burn
 
     VatLike     public immutable vat;
     DaiJoinLike public immutable daiJoin;
     FarmLike    public immutable farm;
-    FlapLike    public           flapper;
-    uint256     public           burn; // in WAD; 1 WAD = 100% burn
-
 
     event Rely(address indexed usr);
     event Deny(address indexed usr);
