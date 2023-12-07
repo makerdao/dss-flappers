@@ -84,6 +84,7 @@ struct FlapperUniV2Config {
 struct SplitterConfig {
     uint256 burn;
     uint256 rewardsDuration;
+    bytes32 chainlogKey;
 }
 
 library FlapperInit {
@@ -126,8 +127,7 @@ library FlapperInit {
 
         mom.setAuthority(dss.chainlog.getAddress("MCD_ADM"));
 
-        dss.chainlog.setAddress(cfg.chainlogKey, address(flapper)); // specific flapper chainlog key (e.g. MCD_FLAP_BURN)
-        dss.chainlog.setAddress("MCD_FLAP", address(flapper)); // Note that this is overwritten in initSplitter
+        dss.chainlog.setAddress(cfg.chainlogKey, address(flapper));
         dss.chainlog.setAddress("FLAPPER_MOM", address(mom));
     }
 
@@ -161,6 +161,6 @@ library FlapperInit {
         splitter_.rely(address(dss.vow));
         dss.vow.file("flapper", splitter);
 
-        dss.chainlog.setAddress("MCD_FLAP", splitter);
+        dss.chainlog.setAddress(cfg.chainlogKey, splitter);
     }
 }

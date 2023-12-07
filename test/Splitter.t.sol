@@ -153,7 +153,8 @@ contract SplitterTest is DssTest {
         });
         SplitterConfig memory splitterCfg = SplitterConfig({
             burn : BURN,
-            rewardsDuration: flapperCfg.hop
+            rewardsDuration: flapperCfg.hop,
+            chainlogKey: "MCD_FLAP_SPLIT"
         });
 
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
@@ -163,7 +164,7 @@ contract SplitterTest is DssTest {
         vm.stopPrank();
 
         assertEq(dss.chainlog.getAddress("MCD_FLAP_BURN"), address(flapper));
-        assertEq(dss.chainlog.getAddress("MCD_FLAP"), address(splitter));
+        assertEq(dss.chainlog.getAddress("MCD_FLAP_SPLIT"), address(splitter));
         assertEq(dss.chainlog.getAddress("FLAPPER_MOM"), address(flapperInstance.mom));
 
         // Add initial liquidity if needed
