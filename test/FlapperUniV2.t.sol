@@ -19,6 +19,7 @@ pragma solidity ^0.8.16;
 import "dss-test/DssTest.sol";
 import { FlapperUniV2 } from "src/FlapperUniV2.sol";
 import "./helpers/UniswapV2Library.sol";
+import { Babylonian } from "src/Babylonian.sol";
 
 import { DssInstance, MCD } from "dss-test/MCD.sol";
 import { FlapperInstance } from "deploy/FlapperInstance.sol";
@@ -112,7 +113,7 @@ contract FlapperUniV2Test is DssTest {
     address constant UNIV2_DAI_MKR_PAIR  = 0x517F9dD285e75b599234F7221227339478d0FcC8;
     address constant UNIV2_LINK_DAI_PAIR = 0x6D4fd456eDecA58Cf53A8b586cd50754547DBDB2;
 
-    event Kick(uint256 lot, uint256 total, uint256 bought, uint256 liquidity);
+    event Kick(uint256 lot, uint256 sell, uint256 bought, uint256 liquidity);
     event Cage(uint256 rad);
 
     function setUp() public {
@@ -139,7 +140,7 @@ contract FlapperUniV2Test is DssTest {
         changeFlapper(address(flapper)); // Use MKR flapper by default
 
         // Create additional surplus if needed
-        uint256 bumps = 2 * vow.bump() + vow.bump() * 110 / 100; // two kicks + 2nd vat.move for the first
+        uint256 bumps = 2 * vow.bump(); // two kicks
         if (vat.dai(address(vow)) < vat.sin(address(vow)) + bumps + vow.hump()) {
             stdstore.target(address(vat)).sig("dai(address)").with_key(address(vow)).depth(0).checked_write(
                 vat.sin(address(vow)) + bumps + vow.hump()
@@ -178,7 +179,7 @@ contract FlapperUniV2Test is DssTest {
             want : WAD * 97 / 100,
             pip  : address(_medianizer),
             hump : 50_000_000 * RAD,
-            bump : 5707 * RAD,
+            bump : 2000 * RAD,
             caller: address(vow),
             chainlogKey: "MCD_FLAP_LP"
         });
@@ -255,8 +256,11 @@ contract FlapperUniV2Test is DssTest {
 
     function marginalWant(address gem, address pip) internal view returns (uint256) {
         uint256 wbump = vow.bump() / RAY;
-        uint256 actual = uniV2GemForDai(wbump, gem);
-        uint256 ref    = refAmountOut(wbump, pip);
+        (uint256 reserveDai, ) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, gem);
+        uint256 sell = (Babylonian.sqrt(reserveDai * (wbump * 3988000 + reserveDai * 3988009)) - reserveDai * 1997) / 1994;
+
+        uint256 actual = uniV2GemForDai(sell, gem);
+        uint256 ref    = refAmountOut(sell, pip);
         return actual * WAD / ref;
     }
 
@@ -271,10 +275,9 @@ contract FlapperUniV2Test is DssTest {
         vow.flap();
 
         assertGt(GemLike(pair).balanceOf(address(PAUSE_PROXY)), initialLp);
-        assertGt(GemLike(DAI).balanceOf(pair), initialReserveDai);
+        assertEq(GemLike(DAI).balanceOf(pair), initialReserveDai + vow.bump() / RAY);
         assertEq(GemLike(gem).balanceOf(pair), initialReserveMkr);
-        assertGt(initialDaiVow - vat.dai(address(vow)), 2 * vow.bump() * 9 / 10);
-        assertLt(initialDaiVow - vat.dai(address(vow)), 2 * vow.bump() * 11 / 10);
+        assertEq(initialDaiVow - vat.dai(address(vow)), vow.bump());
         assertEq(GemLike(DAI).balanceOf(address(_flapper)), 0);
         assertEq(GemLike(gem).balanceOf(address(_flapper)), 0);
     }
@@ -314,7 +317,7 @@ contract FlapperUniV2Test is DssTest {
         checkFileAddress(address(flapper), "FlapperUniV2", ["pip"]);
     }
 
-    function testKick() public {
+    function testKickX() public {
         doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
     }
 
@@ -387,36 +390,6 @@ contract FlapperUniV2Test is DssTest {
         vm.prank(PAUSE_PROXY); flapper.cage(0);
         assertEq(flapper.live(), 0);
         vm.expectRevert("FlapperUniV2/not-live");
-        vow.flap();
-    }
-
-    function testKickTotalInsanity() public {
-        // Set small reserves for current price, to make sure slippage will be large
-        uint256 dust = 10_000 * WAD;
-        deal(DAI, UNIV2_DAI_MKR_PAIR, dust);
-        deal(MKR, UNIV2_DAI_MKR_PAIR, uniV2GemForDai(dust, MKR));
-        PairLike(UNIV2_DAI_MKR_PAIR).sync();
-
-        // Make sure the trade slippage enforcement does not fail us
-        vm.prank(PAUSE_PROXY); flapper.file("want", 0);
-
-        vm.expectRevert("FlapperUniV2/total-insanity");
-        vow.flap();
-    }
-
-    function testKickDaiSecondTotalInsanity() public {
-        changeFlapper(address(linkFlapper));
-
-        // Set small reserves for current price, to make sure slippage will be large
-        uint256 dust = 10_000 * WAD;
-        deal(DAI, UNIV2_LINK_DAI_PAIR, dust);
-        deal(LINK, UNIV2_LINK_DAI_PAIR, uniV2GemForDai(dust, LINK));
-        PairLike(UNIV2_LINK_DAI_PAIR).sync();
-
-        // Make sure the trade slippage enforcement does not fail us
-        vm.prank(PAUSE_PROXY); linkFlapper.file("want", 0);
-
-        vm.expectRevert("FlapperUniV2/total-insanity");
         vow.flap();
     }
 
