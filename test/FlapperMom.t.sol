@@ -87,7 +87,7 @@ contract FlapperMomTest is Test {
             bump: 0,
             daiJoin: DAI_JOIN,
             caller: VOW,
-            chainlogKey: "MCD_FLAP_LP"
+            chainlogKey: "MCD_FLAP"
         });
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
 
