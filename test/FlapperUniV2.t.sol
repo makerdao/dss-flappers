@@ -179,7 +179,7 @@ contract FlapperUniV2Test is DssTest {
             want : WAD * 97 / 100,
             pip  : address(_medianizer),
             hump : 50_000_000 * RAD,
-            bump : 2000 * RAD,
+            bump : 5707 * RAD,
             caller: address(vow),
             chainlogKey: "MCD_FLAP_LP"
         });
