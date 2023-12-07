@@ -98,9 +98,9 @@ contract Splitter {
         uint256 lot = tot * burn / WAD;
         flapper.kick(lot, 0);
 
-        if (tot - lot >= RAY) {
+        uint256 pay = (tot - lot) / RAY;
+        if (pay > 0) {
             FarmLike farm_ = farm;
-            uint256 pay = (tot - lot) / RAY;
             DaiJoinLike(daiJoin).exit(address(farm_), pay);
             farm_.notifyRewardAmount(pay);
         }
