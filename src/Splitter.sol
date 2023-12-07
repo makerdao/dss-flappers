@@ -100,9 +100,8 @@ contract Splitter {
 
         uint256 pay = (tot - lot) / RAY;
         if (pay > 0) {
-            FarmLike farm_ = farm;
-            DaiJoinLike(daiJoin).exit(address(farm_), pay);
-            farm_.notifyRewardAmount(pay);
+            DaiJoinLike(daiJoin).exit(address(farm), pay);
+            farm.notifyRewardAmount(pay);
         }
 
         return 0;
