@@ -184,7 +184,7 @@ contract FlapperUniV2Test is DssTest {
             pair:        pair,
             daiJoin:     DAI_JOIN,
             caller:      address(vow),
-            chainlogKey: "MCD_FLAP"
+            chainlogKey: "MCD_FLAP_LP"
         });
 
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
@@ -319,7 +319,7 @@ contract FlapperUniV2Test is DssTest {
         checkFileAddress(address(flapper), "FlapperUniV2", ["pip"]);
     }
 
-    function testKick() public {
+    function testKickX() public {
         doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
     }
 
