@@ -319,7 +319,7 @@ contract FlapperUniV2Test is DssTest {
         checkFileAddress(address(flapper), "FlapperUniV2", ["pip"]);
     }
 
-    function testKickX() public {
+    function testKick() public {
         doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
     }
 
