@@ -113,7 +113,7 @@ contract FlapperUniV2Test is DssTest {
     address constant UNIV2_DAI_MKR_PAIR  = 0x517F9dD285e75b599234F7221227339478d0FcC8;
     address constant UNIV2_LINK_DAI_PAIR = 0x6D4fd456eDecA58Cf53A8b586cd50754547DBDB2;
 
-    event Kick(uint256 lot, uint256 sell, uint256 bought, uint256 liquidity);
+    event Kick(uint256 lot, uint256 sell, uint256 buy, uint256 liquidity);
     event Cage(uint256 rad);
 
     function setUp() public {

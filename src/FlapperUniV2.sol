@@ -76,7 +76,7 @@ contract FlapperUniV2 {
     event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
     event File(bytes32 indexed what, address data);
-    event Kick(uint256 lot, uint256 sell, uint256 bought, uint256 liquidity);
+    event Kick(uint256 lot, uint256 sell, uint256 buy, uint256 liquidity);
     event Cage(uint256 rad);
 
     constructor(
