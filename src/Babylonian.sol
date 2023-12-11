@@ -8,7 +8,7 @@ pragma solidity ^0.8.16;
 // https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Babylonian_method
 library Babylonian {
     // credit for this implementation goes to
-    // https://github.com/abdk-consulting/abdk-libraries-solidity/blob/master/ABDKMath64x64.sol#L687
+    // https://github.com/abdk-consulting/abdk-libraries-solidity/blob/5e1e7c11b35f8313d3f7ce11c1b86320d7c0b554/ABDKMath64x64.sol#L725
     function sqrt(uint256 x) internal pure returns (uint256) {
         unchecked {
             if (x == 0) return 0;
