@@ -92,8 +92,6 @@ contract SplitterTest is DssTest {
     address constant UNIV2_FACTORY       = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address constant UNIV2_DAI_MKR_PAIR  = 0x517F9dD285e75b599234F7221227339478d0FcC8;
 
-    uint256 constant BURN = 70 * WAD / 100;
-
     event Kick(uint256 lot, uint256 bought);
     event Cage(uint256 rad);
 
@@ -152,7 +150,7 @@ contract SplitterTest is DssTest {
             chainlogKey: "MCD_FLAP_BURN"
         });
         SplitterConfig memory splitterCfg = SplitterConfig({
-            burn : BURN,
+            burn : 70 * WAD / 100,
             rewardsDuration: flapperCfg.hop,
             chainlogKey: "MCD_FLAP_SPLIT"
         });
@@ -358,20 +356,34 @@ contract SplitterTest is DssTest {
         vow.flap();
     }
 
-    function testChangeRewardDuration() public {
-        assertEq(flapper.hop(), farm.rewardsDuration());
+    function testChangeRewardDuration(uint256 newDuration) private {
+        doKick();
+        assertEq(farm.rewardsDuration(), flapper.hop());
+        assertEq(farm.rewardsDuration(), 30 minutes);
+        assertEq(farm.rewardRate(), 5707 * (WAD - 70 * WAD / 100) / 30 minutes);
+        uint256 prevRewardRate = farm.rewardRate();
+        vm.warp(block.timestamp + 10 minutes);
 
-        doKick(); // sets periodFinish to now + rewardsDuration
+        vm.prank(PAUSE_PROXY); farm.setRewardsDuration(newDuration); 
+        vm.prank(PAUSE_PROXY); flapper.file("hop", newDuration);
 
-        vm.expectRevert("Previous rewards period must be complete before changing the duration for the new period");
-        vm.prank(PAUSE_PROXY); farm.setRewardsDuration(666 minutes); 
+        assertEq(farm.rewardsDuration(), newDuration);
+        assertEq(farm.rewardRate(), (prevRewardRate * 20 minutes) / newDuration);
+        assertEq(farm.periodFinish(), block.timestamp + newDuration);
 
-        vm.prank(PAUSE_PROXY); splitter.file("burn", WAD);
-
-        vm.warp(block.timestamp + farm.rewardsDuration() + 1);
+        vm.warp(block.timestamp + newDuration);
         doKick();
 
-        vm.prank(PAUSE_PROXY); farm.setRewardsDuration(666 minutes); // should not revert
+        assertEq(farm.rewardRate(), 5707 * (WAD - 70 * WAD / 100) / newDuration);
+        assertEq(farm.periodFinish(), block.timestamp + newDuration);
+    }
+
+    function testIncreaseRewardDuration() public {
+        testChangeRewardDuration(1 hours);
+    }
+
+    function testDecreaseRewardDuration() public {
+        testChangeRewardDuration(15 minutes);
     }
 
     function testCageFlapperNotSet() public {
