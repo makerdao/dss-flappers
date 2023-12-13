@@ -140,19 +140,21 @@ contract SplitterTest is DssTest {
         vm.startPrank(PAUSE_PROXY);
         // Note - this part emulates the spell initialization
         FlapperUniV2Config memory flapperCfg = FlapperUniV2Config({
-            hop  : 30 minutes,
-            want : WAD * 97 / 100,
-            pip  : address(medianizer),
-            hump : 50_000_000 * RAD,
-            bump : 5707 * RAD,
+            hop:         30 minutes,
+            want:        WAD * 97 / 100,
+            pip:         address(medianizer),
+            hump:        50_000_000 * RAD,
+            bump:        5707 * RAD,
+            pair:        UNIV2_DAI_MKR_PAIR,
             daiJoin: DAI_JOIN,
-            caller: address(splitter),
+            caller:      address(splitter),
             chainlogKey: "MCD_FLAP_BURN"
         });
         SplitterConfig memory splitterCfg = SplitterConfig({
-            burn : 70 * WAD / 100,
+            burn:            70 * WAD / 100,
             rewardsDuration: flapperCfg.hop,
-            chainlogKey: "MCD_FLAP_SPLIT"
+            farm:            address(farm),
+            chainlogKey:     "MCD_FLAP_SPLIT"
         });
 
         DssInstance memory dss = MCD.loadFromChainlog(LOG);

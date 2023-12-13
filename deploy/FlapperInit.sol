@@ -26,6 +26,7 @@ interface FlapperUniV2Like {
     function pip() external view returns (address);
     function pair() external view returns (address);
     function gem() external view returns (address);
+    function receiver() external view returns (address);
     function rely(address) external;
     function file(bytes32, uint256) external;
     function file(bytes32, address) external;
@@ -76,6 +77,7 @@ struct FlapperUniV2Config {
     address pip;
     uint256 hump;
     uint256 bump;
+    address pair;
     address daiJoin;
     address caller;
     bytes32 chainlogKey;
@@ -84,6 +86,7 @@ struct FlapperUniV2Config {
 struct SplitterConfig {
     uint256 burn;
     uint256 rewardsDuration;
+    address farm;
     bytes32 chainlogKey;
 }
 
@@ -99,9 +102,11 @@ library FlapperInit {
         FlapperMomLike   mom     = FlapperMomLike(flapperInstance.mom);
 
         // Sanity checks
-        require(flapper.vat()     == address(dss.vat),     "Flapper vat mismatch");
-        require(flapper.daiJoin() == cfg.daiJoin,          "Flapper daiJoin mismatch");
-        require(flapper.spotter() == address(dss.spotter), "Flapper spotter mismatch");
+        require(flapper.vat()      == address(dss.vat),                           "Flapper vat mismatch");
+        require(flapper.daiJoin()  == cfg.daiJoin,                                "Flapper daiJoin mismatch");
+        require(flapper.spotter()  == address(dss.spotter),                       "Flapper spotter mismatch");
+        require(flapper.pair()     == cfg.pair,                                   "Flapper pair mismatch");
+        require(flapper.receiver() == dss.chainlog.getAddress("MCD_PAUSE_PROXY"), "Flapper receiver mismatch");
 
         PairLike pair = PairLike(flapper.pair());
         address  dai  = DaiJoinLike(cfg.daiJoin).dai();
@@ -149,6 +154,7 @@ library FlapperInit {
         SplitterLike splitter_ = SplitterLike(splitter);
         require(splitter_.vat()     == address(dss.vat),     "Splitter vat mismatch");
         require(splitter_.daiJoin() == address(dss.daiJoin), "Splitter daiJoin mismatch");
+        require(splitter_.farm()    == cfg.farm,             "Splitter farm mismatch");
 
         require(cfg.burn <= WAD, "Splitter burn too high");
 

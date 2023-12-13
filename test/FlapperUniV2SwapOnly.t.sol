@@ -179,6 +179,7 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
             pip  : address(_medianizer),
             hump : 50_000_000 * RAD,
             bump : 5707 * RAD,
+            pair: pair,
             daiJoin : DAI_JOIN,
             caller: address(vow),
             chainlogKey: "MCD_FLAP"
