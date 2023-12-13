@@ -358,11 +358,12 @@ contract SplitterTest is DssTest {
         vow.flap();
     }
 
-    function testChangeRewardDuration(uint256 newDuration) private {
+    function checkChangeRewardDuration(uint256 newDuration) private {
+        uint256 topup = 5707 * (WAD - 70 * WAD / 100);
         doKick();
         assertEq(farm.rewardsDuration(), flapper.hop());
         assertEq(farm.rewardsDuration(), 30 minutes);
-        assertEq(farm.rewardRate(), 5707 * (WAD - 70 * WAD / 100) / 30 minutes);
+        assertEq(farm.rewardRate(), topup / 30 minutes);
         uint256 prevRewardRate = farm.rewardRate();
         vm.warp(block.timestamp + 10 minutes);
 
@@ -371,21 +372,31 @@ contract SplitterTest is DssTest {
 
         assertEq(farm.rewardsDuration(), newDuration);
         assertEq(farm.rewardRate(), (prevRewardRate * 20 minutes) / newDuration);
+        prevRewardRate = farm.rewardRate();
+        assertEq(farm.periodFinish(), block.timestamp + newDuration);
+
+        if (newDuration > 10 minutes) vm.warp(block.timestamp + newDuration - 10 minutes);
+        doKick();
+        uint256 remaining = newDuration < 10 minutes ? newDuration : 10 minutes;
+        assertEq(farm.rewardRate(), (prevRewardRate * remaining + topup) / newDuration);
         assertEq(farm.periodFinish(), block.timestamp + newDuration);
 
         vm.warp(block.timestamp + newDuration);
         doKick();
-
-        assertEq(farm.rewardRate(), 5707 * (WAD - 70 * WAD / 100) / newDuration);
+        assertEq(farm.rewardRate(), topup / newDuration);
         assertEq(farm.periodFinish(), block.timestamp + newDuration);
     }
 
     function testIncreaseRewardDuration() public {
-        testChangeRewardDuration(1 hours);
+        checkChangeRewardDuration(1 hours);
     }
 
     function testDecreaseRewardDuration() public {
-        testChangeRewardDuration(15 minutes);
+        checkChangeRewardDuration(15 minutes);
+    }
+
+    function testDecreaseRewardDurationAllowingImmediateKick() public {
+        checkChangeRewardDuration(5 minutes);
     }
 
     function testCageFlapperNotSet() public {
