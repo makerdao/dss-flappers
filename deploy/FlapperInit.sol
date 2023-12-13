@@ -159,7 +159,7 @@ library FlapperInit {
         require(cfg.burn <= WAD, "Splitter burn too high");
 
         splitter_.file("burn", cfg.burn);
-        FarmLike farm = FarmLike(splitter_.farm());
+        FarmLike farm = FarmLike(cfg.farm);
         farm.setRewardsDistribution(splitter);
         farm.setRewardsDuration(cfg.rewardsDuration);
 
