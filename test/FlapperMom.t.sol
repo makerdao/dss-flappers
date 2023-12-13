@@ -80,14 +80,14 @@ contract FlapperMomTest is Test {
 
         // use random values
         FlapperUniV2Config memory cfg = FlapperUniV2Config({
-            hop:          5 minutes,
-            want:         1e18,
-            pip:          address(0),
-            hump:         1,
-            bump:         0,
-            pair:         UNIV2_DAI_MKR_PAIR,
-            daiJoin: DAI_JOIN,
-            caller:       VOW,
+            hop:         5 minutes,
+            want:        1e18,
+            pip:         address(0),
+            hump:        1,
+            bump:        0,
+            pair:        UNIV2_DAI_MKR_PAIR,
+            daiJoin:     DAI_JOIN,
+            caller:      VOW,
             chainlogKey: "MCD_FLAP"
         });
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
