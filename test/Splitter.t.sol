@@ -171,11 +171,14 @@ contract SplitterTest is DssTest {
         (uint256 reserveDai, ) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
         uint256 minimalDaiReserve = 280_000 * WAD;
         if (reserveDai < minimalDaiReserve) {
+            changeMedianizerPrice(727 * WAD);
             changeUniV2Price(medianizer.read(), MKR, UNIV2_DAI_MKR_PAIR);
             (reserveDai, ) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
             if(reserveDai < minimalDaiReserve) {
                 topUpLiquidity(minimalDaiReserve - reserveDai, MKR, UNIV2_DAI_MKR_PAIR);
             }
+        } else {
+            changeMedianizerPrice(uniV2DaiForGem(WAD, MKR));
         }
 
         // Create additional surplus if needed
@@ -217,6 +220,10 @@ contract SplitterTest is DssTest {
             deal(DAI, pair, reserveGem * daiForGem / WAD);
         }
         PairLike(pair).sync();
+    }
+
+    function changeMedianizerPrice(uint256 daiForGem) internal {
+        vm.store(address(medianizer), bytes32(uint256(1)), bytes32(block.timestamp << 128 | daiForGem));
     }
 
     function topUpLiquidity(uint256 daiAmt, address gem, address pair) internal {
