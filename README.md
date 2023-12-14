@@ -34,6 +34,14 @@ This contract allows bypassing the governance delay when disabling the Flapper i
 
 Allows for scaling down an oracle price by a certain value. This can be useful when the `gem` is a redenominated version of an existing token, which already has a reliable oracle.
 
+### Splitter
+
+Exposes a `kick` operation to be triggered periodically. Its logic withdraws `DAI` from the `vow` and splits it in two parts. The first part (`burn`) is sent to the underlying `flapper` contract to be burned. The second part (`WAD - burn`) is distributed as reward to a `farm` contract. The `kick` cadence is determined by `flapper.hop()`.
+
+Configurable Parameters:
+* `flapper` - The underlying burner strategy (e.g. the address of `FlapperUniV2SwapOnly`).
+* `burn` - The percentage of the `vow.bump` to be moved to the underlying `flapper`. For example, a value of 0.70 \* `WAD` corresponds to a 70% burn.
+
 ### General Note:
 
 * Availability and accounting of the withdrawn `DAI` is the responsibility of the `vow`. At the time of a `kick`, the `vow` is expected to hold at least the swapped amount (`vow.bump`) over the configured flapping threshold (`vow.hump`).
