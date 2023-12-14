@@ -422,7 +422,7 @@ contract FlapperUniV2Test is DssTest {
         assertEq(flapper.live(), 0);
     }
 
-    // A shortened version of the sell and deposit flapper that only sells `lot`.
+    // A shortened version of the sell and deposit flapper that sells `lot`.
     // Based on: https://github.com/makerdao/dss-flappers/blob/da7b6b70e7cfe3631f8af695bbe0c79db90e2a20/src/FlapperUniV2.sol
     function sellLotAndDeposit(PairLike pair, address gem, bool daiFirst, address receiver, uint256 lot) internal {
 
