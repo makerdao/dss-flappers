@@ -320,14 +320,8 @@ contract SplitterTest is DssTest {
     }
 
     function testKickBurnOnly() public {
-        doKick();
-        vm.warp(block.timestamp + flapper.hop());
-
         vm.prank(PAUSE_PROXY); splitter.file("burn", WAD);
 
-        // make sure the slippage of the first kick doesn't block us
-        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
-        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
         doKick();
     }
 
