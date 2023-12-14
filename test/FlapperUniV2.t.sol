@@ -61,6 +61,7 @@ interface SpotterLike {
 interface PairLike {
     function mint(address) external returns (uint256);
     function sync() external;
+    function swap(uint256, uint256, address, bytes calldata) external;
 }
 
 interface GemLike {
@@ -419,5 +420,53 @@ contract FlapperUniV2Test is DssTest {
         emit Cage(0);
         vm.prank(PAUSE_PROXY); end.cage();
         assertEq(flapper.live(), 0);
+    }
+
+    // A shortened version of the sell and deposit flapper that only sells `lot`.
+    // Based on: https://github.com/makerdao/dss-flappers/blob/da7b6b70e7cfe3631f8af695bbe0c79db90e2a20/src/FlapperUniV2.sol
+    function sellLotAndDeposit(PairLike pair, address gem, bool daiFirst, address receiver, uint256 lot) internal {
+
+        // Get Amounts
+        (uint256 _reserveDai, uint256 _reserveGem) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, gem);
+        uint256 _wlot = lot / RAY;
+        uint256 _total = _wlot * (997 * _wlot + 1997 * _reserveDai) / (1000 * _reserveDai);
+        uint256 _buy = _wlot * 997 * _reserveGem / (_reserveDai * 1000 + _wlot * 997);
+
+        // Swap
+        GemLike(DAI).transfer(address(pair), _wlot);
+        (uint256 _amt0Out, uint256 _amt1Out) = daiFirst ? (uint256(0), _buy) : (_buy, uint256(0));
+        pair.swap(_amt0Out, _amt1Out, address(this), new bytes(0));
+
+        // Deposit
+        GemLike(DAI).transfer(address(pair), _total - _wlot);
+        GemLike(gem).transfer(address(pair), _buy);
+        pair.mint(receiver);
+    }
+
+    function testEquivalenceToSellLotAndDeposit() public {
+        address pair = UNIV2_DAI_MKR_PAIR;
+        uint256 initialState = vm.snapshot();
+
+        deal(DAI, address(this), vow.bump() * 3); // certainly enough for the sell and deposit
+        GemLike(DAI).approve(pair, vow.bump() * 3);
+
+        uint256 initialDai = GemLike(DAI).balanceOf(address(this));
+        uint256 initialLp = GemLike(pair).balanceOf(PAUSE_PROXY);
+
+        sellLotAndDeposit(PairLike(pair), MKR, true, PAUSE_PROXY, vow.bump());
+
+        uint256 totalDaiConsumed = initialDai - GemLike(DAI).balanceOf(address(this));
+        uint256 boughtLpSellLot = GemLike(pair).balanceOf(PAUSE_PROXY) - initialLp;
+
+        vm.revertTo(initialState);
+
+        // The current flapper gets the total vat.dai to consume.
+        vm.prank(PAUSE_PROXY); vow.file("bump", totalDaiConsumed * RAY);
+        initialLp = GemLike(pair).balanceOf(PAUSE_PROXY);
+
+        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
+
+        uint256 boughtLpTotalLot = GemLike(pair).balanceOf(PAUSE_PROXY) - initialLp;
+        assertEq(boughtLpTotalLot, boughtLpSellLot);
     }
 }
