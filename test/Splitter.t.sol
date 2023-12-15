@@ -92,7 +92,7 @@ contract SplitterTest is DssTest {
     address constant UNIV2_FACTORY       = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address constant UNIV2_DAI_MKR_PAIR  = 0x517F9dD285e75b599234F7221227339478d0FcC8;
 
-    event Kick(uint256 lot, uint256 bought);
+    event Kick(uint256 tot, uint256 lot, uint256 pay);
     event Cage(uint256 rad);
 
     function setUp() public {
@@ -259,8 +259,8 @@ contract SplitterTest is DssTest {
         uint256 farmReward = vow.bump() * (WAD - splitter.burn()) / RAD;
         uint256 prevLastUpdateTime = farm.lastUpdateTime();
 
-        vm.expectEmit(false, false, false, false); // only check event signature (topic 0)
-        emit Kick(0, 0);
+        vm.expectEmit(false, false, false, true);
+        emit Kick(vow.bump(), vow.bump() * splitter.burn() / WAD, farmReward);
         vow.flap();
 
         assertEq(vat.dai(address(vow)), initialVowVatDai - vow.bump());

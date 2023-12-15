@@ -49,6 +49,7 @@ contract Splitter {
     event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
     event File(bytes32 indexed what, address data);
+    event Kick(uint256 tot, uint256 lot, uint256 pay);
 
     constructor(
         address _daiJoin,
@@ -104,6 +105,7 @@ contract Splitter {
             farm.notifyRewardAmount(pay);
         }
 
+        emit Kick(tot, lot, pay);
         return 0;
     }
 
