@@ -334,6 +334,10 @@ contract SplitterTest is DssTest {
 
     function testKickLowBurn() public {
         (uint256 reserveDai, uint256 reserveMkr) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
+
+        // the minimum `burn` value can be obtained for `FlapperUniV2SwapOnly` by requiring that `_buy > 0`, where:
+        // _buy = _getAmountOut(lot / RAY, reserveDai, reserveGem)
+        //      = _getAmountOut(vow.bump() * burn / RAD, reserveDai, reserveGem)
         uint256 minBurn = (RAD * 1000 * reserveDai) / (vow.bump() * 997 * (reserveMkr - 1)) + 1;
 
         vm.prank(PAUSE_PROXY); splitter.file("burn", minBurn - 1);
