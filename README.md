@@ -40,7 +40,7 @@ Exposes a `kick` operation to be triggered periodically. Its logic withdraws `DA
 
 Configurable Parameters:
 * `flapper` - The underlying burner strategy (e.g. the address of `FlapperUniV2SwapOnly`).
-* `burn` - The percentage of the `vow.bump` to be moved to the underlying `flapper`. For example, a value of 0.70 \* `WAD` corresponds to a 70% burn.
+* `burn` - The percentage of the `vow.bump` to be moved to the underlying `flapper`. For example, a value of 0.70 \* `WAD` corresponds to funneling 70% of the `DAI` to the burn engine.
 
 ### General Note:
 
