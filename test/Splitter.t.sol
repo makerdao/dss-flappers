@@ -332,6 +332,19 @@ contract SplitterTest is DssTest {
         doKick();
     }
 
+    function testKickLowBurn() public {
+        (uint256 reserveDai, uint256 reserveMkr) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
+        uint256 minBurn = (RAD * 1000 * reserveDai) / (vow.bump() * 997 * (reserveMkr - 1)) + 1;
+
+        vm.prank(PAUSE_PROXY); splitter.file("burn", minBurn - 1);
+
+        vm.expectRevert("UniswapV2: INSUFFICIENT_OUTPUT_AMOUNT");
+        vow.flap();
+
+        vm.prank(PAUSE_PROXY); splitter.file("burn", minBurn);
+        doKick();
+    }
+
     function testKickAfterHop() public {
         doKick();
         vm.warp(block.timestamp + flapper.hop());
