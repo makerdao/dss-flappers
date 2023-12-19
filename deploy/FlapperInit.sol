@@ -157,6 +157,7 @@ library FlapperInit {
         require(splitter_.farm()    == cfg.farm,             "Splitter farm mismatch");
 
         require(cfg.burn <= WAD, "Splitter burn too high");
+        require(cfg.burn > 0,    "Splitter burn is zero"); // Note that other very low `burn` values may also cause `flapper.kick` to revert.
 
         splitter_.file("burn", cfg.burn);
         FarmLike farm = FarmLike(cfg.farm);
