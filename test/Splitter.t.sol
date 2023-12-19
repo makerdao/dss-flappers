@@ -195,6 +195,13 @@ contract SplitterTest is DssTest {
         }
     }
 
+    function divup(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        // Note: _divup(0,0) will return 0 differing from natural solidity division
+        unchecked {
+            z = x != 0 ? ((x - 1) / y) + 1 : 0;
+        }
+    }
+
     function refAmountOut(uint256 amountIn, address pip) internal view returns (uint256) {
         return amountIn * WAD / (uint256(PipLike(pip).read()) * RAY / SpotterLike(SPOT).par());
     }
@@ -338,7 +345,7 @@ contract SplitterTest is DssTest {
         // the minimum `burn` value can be obtained for `FlapperUniV2SwapOnly` by requiring that `_buy > 0`, where:
         // _buy = _getAmountOut(lot / RAY, reserveDai, reserveGem)
         //      = _getAmountOut(vow.bump() * burn / RAD, reserveDai, reserveGem)
-        uint256 minBurn = (RAD * 1000 * reserveDai) / (vow.bump() * 997 * (reserveMkr - 1)) + 1;
+        uint256 minBurn = divup(RAD * 1000 * reserveDai, vow.bump() * 997 * (reserveMkr - 1));
 
         vm.prank(PAUSE_PROXY); splitter.file("burn", minBurn - 1);
 
