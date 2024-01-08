@@ -174,11 +174,12 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         // Note - this part emulates the spell initialization
         vm.startPrank(PAUSE_PROXY);
         FlapperUniV2Config memory cfg = FlapperUniV2Config({
-            hop  : 30 minutes,
-            want : WAD * 97 / 100,
-            pip  : address(_medianizer),
-            hump : 50_000_000 * RAD,
-            bump : 5707 * RAD
+            hop     : 30 minutes,
+            want    : WAD * 97 / 100,
+            pip     : address(_medianizer),
+            hump    : 50_000_000 * RAD,
+            bump    : 5707 * RAD,
+            daiJoin : DAI_JOIN
         });
 
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
