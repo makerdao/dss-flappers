@@ -356,6 +356,9 @@ contract SplitterTest is DssTest {
         doKick();
         vm.warp(block.timestamp + splitter.hop());
 
+        // make sure the slippage of the first kick doesn't block us
+        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
+        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
         doKick();
     }
 
