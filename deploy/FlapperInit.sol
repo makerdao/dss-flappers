@@ -84,6 +84,7 @@ struct FlapperUniV2Config {
 }
 
 struct SplitterConfig {
+    uint256 hop;
     uint256 burn;
     uint256 rewardsDuration;
     address farm;
@@ -115,7 +116,7 @@ library FlapperInit {
         require(pairDai == dai,           "Dai mismatch");
         require(pairGem == flapper.gem(), "Gem mismatch");
 
-        require(cfg.hop >= 5 minutes, "hop too low");
+        require(cfg.hop == 0 || cfg.hop >= 5 minutes, "hop too low");
         require(cfg.want >= WAD * 90 / 100, "want too low");
         require(cfg.hump > 0, "hump too low");
 
@@ -127,8 +128,8 @@ library FlapperInit {
 
         FlapperCaller(cfg.caller).file("flapper", address(flapper));
 
-        dss.vow.file("hump",    cfg.hump);
-        dss.vow.file("bump",    cfg.bump);
+        dss.vow.file("hump", cfg.hump);
+        dss.vow.file("bump", cfg.bump);
 
         mom.setAuthority(dss.chainlog.getAddress("MCD_ADM"));
 
@@ -156,9 +157,10 @@ library FlapperInit {
         require(splitter_.daiJoin() == address(dss.daiJoin), "Splitter daiJoin mismatch");
         require(splitter_.farm()    == cfg.farm,             "Splitter farm mismatch");
 
-        require(cfg.burn <= WAD, "Splitter burn too high");
-        require(cfg.burn > 0,    "Splitter burn is zero"); // Note that other very low `burn` values may also cause `flapper.kick` to revert.
+        require(cfg.hop >= 5 minutes, "Splitter hop too low");
+        require(cfg.burn <= WAD,      "Splitter burn too high");
 
+        splitter_.file("hop",  cfg.hop);
         splitter_.file("burn", cfg.burn);
         FarmLike farm = FarmLike(cfg.farm);
         farm.setRewardsDistribution(splitter);

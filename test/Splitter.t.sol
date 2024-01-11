@@ -140,7 +140,7 @@ contract SplitterTest is DssTest {
         vm.startPrank(PAUSE_PROXY);
         // Note - this part emulates the spell initialization
         FlapperUniV2Config memory flapperCfg = FlapperUniV2Config({
-            hop:         30 minutes,
+            hop:         0, // disable flapper-level rate limit
             want:        WAD * 97 / 100,
             pip:         address(medianizer),
             hump:        50_000_000 * RAD,
@@ -151,8 +151,9 @@ contract SplitterTest is DssTest {
             chainlogKey: "MCD_FLAP_BURN"
         });
         SplitterConfig memory splitterCfg = SplitterConfig({
+            hop:             30 minutes,
             burn:            70 * WAD / 100,
-            rewardsDuration: flapperCfg.hop,
+            rewardsDuration: 30 minutes,
             farm:            address(farm),
             chainlogKey:     "MCD_FLAP_SPLIT"
         });
@@ -275,8 +276,13 @@ contract SplitterTest is DssTest {
         assertEq(vat.dai(address(splitter)), 0);
 
         assertEq(GemLike(DAI).balanceOf(UNIV2_DAI_MKR_PAIR), initialReserveDai + vow.bump() * splitter.burn() / RAD);
-        assertLt(GemLike(MKR).balanceOf(UNIV2_DAI_MKR_PAIR), initialReserveMkr);
-        assertGt(GemLike(MKR).balanceOf(address(PAUSE_PROXY)), initialMkr);
+        if (splitter.burn() == 0) {
+            assertEq(GemLike(MKR).balanceOf(UNIV2_DAI_MKR_PAIR), initialReserveMkr);
+            assertEq(GemLike(MKR).balanceOf(address(PAUSE_PROXY)), initialMkr);
+        } else {
+            assertLt(GemLike(MKR).balanceOf(UNIV2_DAI_MKR_PAIR), initialReserveMkr);
+            assertGt(GemLike(MKR).balanceOf(address(PAUSE_PROXY)), initialMkr);
+        }
 
         assertEq(GemLike(DAI).balanceOf(address(farm)), initialFarmDai + farmReward);
         assertEq(farm.rewardRate(), splitter.burn() == WAD ? prevRewardRate : (farmLeftover + farmReward) / farm.rewardsDuration());
@@ -339,26 +345,15 @@ contract SplitterTest is DssTest {
         doKick();
     }
 
-    function testKickLowBurn() public {
-        (uint256 reserveDai, uint256 reserveMkr) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
+    function testKickZeroBurn() public {
+        vm.prank(PAUSE_PROXY); splitter.file("burn", 0);
 
-        // the minimum `burn` value can be obtained for `FlapperUniV2SwapOnly` by requiring that `_buy > 0`, where:
-        // _buy = _getAmountOut(lot / RAY, reserveDai, reserveGem)
-        //      = _getAmountOut(vow.bump() * burn / RAD, reserveDai, reserveGem)
-        uint256 minBurn = divup(RAD * 1000 * reserveDai, vow.bump() * 997 * (reserveMkr - 1));
-
-        vm.prank(PAUSE_PROXY); splitter.file("burn", minBurn - 1);
-
-        vm.expectRevert("UniswapV2: INSUFFICIENT_OUTPUT_AMOUNT");
-        vow.flap();
-
-        vm.prank(PAUSE_PROXY); splitter.file("burn", minBurn);
         doKick();
     }
 
     function testKickAfterHop() public {
         doKick();
-        vm.warp(block.timestamp + flapper.hop());
+        vm.warp(block.timestamp + splitter.hop());
 
         // make sure the slippage of the first kick doesn't block us
         uint256 _marginalWant = marginalWant(MKR, address(medianizer));
@@ -368,12 +363,57 @@ contract SplitterTest is DssTest {
 
     function testKickBeforeHop() public {
         doKick();
+        vm.warp(block.timestamp + splitter.hop() - 1 seconds);
+
+        // make sure the slippage of the first kick doesn't block us
+        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
+        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
+        vm.expectRevert("Splitter/kicked-too-soon");
+        vow.flap();
+    }
+
+    function testKickAfterMaxHop() public {
+        vm.prank(PAUSE_PROXY); flapper.file("hop", 60 minutes);
+        assertGt(flapper.hop(), splitter.hop());
+
+        doKick();
+        vm.warp(block.timestamp + flapper.hop());
+
+        // make sure the slippage of the first kick doesn't block us
+        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
+        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
+        doKick();
+    }
+
+    function testKickBeforeMaxHop() public {
+        vm.prank(PAUSE_PROXY); flapper.file("hop", 60 minutes);
+        assertGt(flapper.hop(), splitter.hop());
+
+        doKick();
         vm.warp(block.timestamp + flapper.hop() - 1 seconds);
 
         // make sure the slippage of the first kick doesn't block us
         uint256 _marginalWant = marginalWant(MKR, address(medianizer));
         vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
         vm.expectRevert("FlapperUniV2SwapOnly/kicked-too-soon");
+        vow.flap();
+    }
+
+    function testKickAfterStoppedWithHop() public {
+        uint256 initialHop = splitter.hop();
+
+        doKick();
+        vm.warp(block.timestamp + splitter.hop());
+
+        // make sure the slippage of the first kick doesn't block us
+        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
+        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
+
+        vm.prank(PAUSE_PROXY); splitter.file("hop", type(uint256).max);
+        vm.expectRevert(bytes(abi.encodeWithSignature("Panic(uint256)", 0x11))); // arithmetic error
+        vow.flap();
+
+        vm.prank(PAUSE_PROXY); splitter.file("hop", initialHop);
         vow.flap();
     }
 
@@ -386,14 +426,14 @@ contract SplitterTest is DssTest {
     function checkChangeRewardDuration(uint256 newDuration) private {
         uint256 topup = 5707 * (WAD - 70 * WAD / 100);
         doKick();
-        assertEq(farm.rewardsDuration(), flapper.hop());
+        assertEq(farm.rewardsDuration(), splitter.hop());
         assertEq(farm.rewardsDuration(), 30 minutes);
         assertEq(farm.rewardRate(), topup / 30 minutes);
         uint256 prevRewardRate = farm.rewardRate();
         vm.warp(block.timestamp + 10 minutes);
 
         vm.prank(PAUSE_PROXY); farm.setRewardsDuration(newDuration); 
-        vm.prank(PAUSE_PROXY); flapper.file("hop", newDuration);
+        vm.prank(PAUSE_PROXY); splitter.file("hop", newDuration);
 
         assertEq(farm.rewardsDuration(), newDuration);
         assertEq(farm.rewardRate(), (prevRewardRate * 20 minutes) / newDuration);

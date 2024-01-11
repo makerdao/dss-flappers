@@ -39,7 +39,9 @@ interface FarmLike {
 contract Splitter {
     mapping (address => uint256) public wards;
     FlapLike    public           flapper;
-    uint256     public           burn; // in WAD; 1 WAD = funneling 100% to the burn engine
+    uint256     public           burn; // [WAD]       Burn percentage. 1 WAD = funneling 100% to the burn engine
+    uint32      public           hop;  // [Seconds]   Time between kicks
+    uint32      public           zzz;  // [Timestamp] Last kick
 
     VatLike     public immutable vat;
     DaiJoinLike public immutable daiJoin;
@@ -77,7 +79,8 @@ contract Splitter {
     function deny(address usr) external auth { wards[usr] = 0; emit Deny(usr); }
 
     function file(bytes32 what, uint256 data) external auth {
-        if   (what == "burn") burn = data;
+        if      (what == "burn") burn = data;
+        else if (what == "hop")  hop  = uint32(data);
         else revert("Splitter/file-unrecognized-param");
         emit File(what, data);
     }
@@ -92,12 +95,16 @@ contract Splitter {
         emit File(what, data);
     }
 
-    // Note: the kick() cadence is determined by flapper.hop()
     function kick(uint256 tot, uint256) external auth returns (uint256) {
+        require(block.timestamp >= zzz + hop, "Splitter/kicked-too-soon");
+        zzz = uint32(block.timestamp);
+
         vat.move(msg.sender, address(this), tot);
 
         uint256 lot = tot * burn / WAD;
-        flapper.kick(lot, 0);
+        if (lot > 0) {
+            flapper.kick(lot, 0);
+        }
 
         uint256 pay = (tot - lot) / RAY;
         if (pay > 0) {

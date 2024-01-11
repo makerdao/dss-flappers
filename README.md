@@ -36,11 +36,12 @@ Allows for scaling down an oracle price by a certain value. This can be useful w
 
 ### Splitter
 
-Exposes a `kick` operation to be triggered periodically. Its logic withdraws `DAI` from the `vow` and splits it in two parts. The first part (`burn`) is sent to the underlying `flapper` contract to be processed by the burn engine. The second part (`WAD - burn`) is distributed as reward to a `farm` contract. The `kick` cadence is determined by `flapper.hop()`.
+Exposes a `kick` operation to be triggered periodically. Its logic withdraws `DAI` from the `vow` and splits it in two parts. The first part (`burn`) is sent to the underlying `flapper` contract to be processed by the burn engine. The second part (`WAD - burn`) is distributed as reward to a `farm` contract. Note that the `kick` cadence is determined by `max(splitter.hop(), flapper.hop())`.
 
 Configurable Parameters:
+* `hop` - Minimum seconds interval between kicks.
 * `flapper` - The underlying burner strategy (e.g. the address of `FlapperUniV2SwapOnly`).
-* `burn` - The percentage of the `vow.bump` to be moved to the underlying `flapper`. For example, a value of 0.70 \* `WAD` corresponds to funneling 70% of the `DAI` to the burn engine. Note that `FlapperUniV2` and `FlapperUniV2SwapOnly` do not support very small `burn` values.
+* `burn` - The percentage of the `vow.bump` to be moved to the underlying `flapper`. For example, a value of 0.70 \* `WAD` corresponds to funneling 70% of the `DAI` to the burn engine.
 
 ### General Note:
 
