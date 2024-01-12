@@ -17,7 +17,7 @@
 pragma solidity >=0.8.0;
 
 import { DssInstance } from "dss-test/MCD.sol";
-import { FlapperInstance } from "./FlapperInstance.sol";
+import { SplitterInstance } from "./SplitterInstance.sol";
 
 interface FlapperUniV2Like {
     function vat() external view returns (address);
@@ -32,7 +32,7 @@ interface FlapperUniV2Like {
     function file(bytes32, address) external;
 }
 
-interface FlapperMomLike {
+interface SplitterMomLike {
     function setAuthority(address) external;
 }
 
@@ -67,23 +67,18 @@ interface FarmLike {
     function setRewardsDuration(uint256) external;
 }
 
-interface FlapperCaller {
-    function file(bytes32, address) external;
-}
-
 struct FlapperUniV2Config {
-    uint256 hop;
     uint256 want;
     address pip;
-    uint256 hump;
-    uint256 bump;
     address pair;
     address daiJoin;
-    address caller;
+    address splitter;
     bytes32 chainlogKey;
 }
 
 struct SplitterConfig {
+    uint256 hump;
+    uint256 bump;
     uint256 hop;
     uint256 burn;
     uint256 rewardsDuration;
@@ -97,45 +92,34 @@ library FlapperInit {
 
     function initFlapperUniV2(
         DssInstance        memory dss,
-        FlapperInstance    memory flapperInstance,
+        address flapper,
         FlapperUniV2Config memory cfg
     ) internal {
-        FlapperUniV2Like flapper = FlapperUniV2Like(flapperInstance.flapper);
-        FlapperMomLike   mom     = FlapperMomLike(flapperInstance.mom);
+        FlapperUniV2Like flapper_ = FlapperUniV2Like(flapper);
 
         // Sanity checks
-        require(flapper.vat()      == address(dss.vat),                           "Flapper vat mismatch");
-        require(flapper.daiJoin()  == cfg.daiJoin,                                "Flapper daiJoin mismatch");
-        require(flapper.spotter()  == address(dss.spotter),                       "Flapper spotter mismatch");
-        require(flapper.pair()     == cfg.pair,                                   "Flapper pair mismatch");
-        require(flapper.receiver() == dss.chainlog.getAddress("MCD_PAUSE_PROXY"), "Flapper receiver mismatch");
+        require(flapper_.vat()      == address(dss.vat),                           "Flapper vat mismatch");
+        require(flapper_.daiJoin()  == cfg.daiJoin,                                "Flapper daiJoin mismatch");
+        require(flapper_.spotter()  == address(dss.spotter),                       "Flapper spotter mismatch");
+        require(flapper_.pair()     == cfg.pair,                                   "Flapper pair mismatch");
+        require(flapper_.receiver() == dss.chainlog.getAddress("MCD_PAUSE_PROXY"), "Flapper receiver mismatch");
 
-        PairLike pair = PairLike(flapper.pair());
+        PairLike pair = PairLike(flapper_.pair());
         address  dai  = DaiJoinLike(cfg.daiJoin).dai();
         (address pairDai, address pairGem) = pair.token0() == dai ? (pair.token0(), pair.token1())
                                                                   : (pair.token1(), pair.token0());
-        require(pairDai == dai,           "Dai mismatch");
-        require(pairGem == flapper.gem(), "Gem mismatch");
+        require(pairDai == dai, "Dai mismatch");
+        require(pairGem == flapper_.gem(),    "Gem mismatch");
 
-        require(cfg.hop == 0 || cfg.hop >= 5 minutes, "hop too low");
         require(cfg.want >= WAD * 90 / 100, "want too low");
-        require(cfg.hump > 0, "hump too low");
 
-        flapper.file("hop",  cfg.hop);
-        flapper.file("want", cfg.want);
-        flapper.file("pip",  cfg.pip);
-        flapper.rely(address(mom));
-        flapper.rely(address(cfg.caller));
+        flapper_.file("want", cfg.want);
+        flapper_.file("pip",  cfg.pip);
+        flapper_.rely(address(cfg.splitter));
 
-        FlapperCaller(cfg.caller).file("flapper", address(flapper));
+        SplitterLike(cfg.splitter).file("flapper", flapper);
 
-        dss.vow.file("hump", cfg.hump);
-        dss.vow.file("bump", cfg.bump);
-
-        mom.setAuthority(dss.chainlog.getAddress("MCD_ADM"));
-
-        dss.chainlog.setAddress(cfg.chainlogKey, address(flapper));
-        dss.chainlog.setAddress("FLAPPER_MOM", address(mom));
+        dss.chainlog.setAddress(cfg.chainlogKey, flapper);
     }
 
     function initDirectOracle(address flapper) internal {
@@ -148,29 +132,39 @@ library FlapperInit {
     }
 
     function initSplitter(        
-        DssInstance memory dss,
-        address splitter,
-        SplitterConfig memory cfg
+        DssInstance      memory dss,
+        SplitterInstance memory splitterInstance,
+        SplitterConfig   memory cfg
     ) internal {
+        SplitterLike    splitter = SplitterLike(splitterInstance.splitter);
+        SplitterMomLike mom      = SplitterMomLike(splitterInstance.mom);
+
         // Sanity checks
-        SplitterLike splitter_ = SplitterLike(splitter);
         require(splitter_.vat()     == address(dss.vat), "Splitter vat mismatch");
         require(splitter_.daiJoin() == cfg.daiJoin,      "Splitter daiJoin mismatch");
         require(splitter_.farm()    == cfg.farm,         "Splitter farm mismatch");
 
-        require(cfg.hop >= 5 minutes, "Splitter hop too low");
-        require(cfg.burn <= WAD,      "Splitter burn too high");
+        require(cfg.hump > 0,         "hump too low");
+        require(cfg.hop >= 5 minutes, "hop too low");
+        require(cfg.burn <= WAD,      "burn too high");
 
-        splitter_.file("hop",  cfg.hop);
-        splitter_.file("burn", cfg.burn);
+        splitter.file("hop",  cfg.hop);
+        splitter.file("burn", cfg.burn);
+        splitter.rely(address(mom));
+
         FarmLike farm = FarmLike(cfg.farm);
-        farm.setRewardsDistribution(splitter);
+        farm.setRewardsDistribution(splitterInstance.splitter);
         farm.setRewardsDuration(cfg.rewardsDuration);
 
-        // Wire splitter with vow
-        splitter_.rely(address(dss.vow));
-        dss.vow.file("flapper", splitter);
+        splitter.rely(address(dss.vow));
+        dss.vow.file("flapper", splitterInstance.splitter);
 
-        dss.chainlog.setAddress(cfg.chainlogKey, splitter);
+        dss.vow.file("hump", cfg.hump);
+        dss.vow.file("bump", cfg.bump);
+
+        mom.setAuthority(dss.chainlog.getAddress("MCD_ADM"));
+
+        dss.chainlog.setAddress(cfg.chainlogKey, splitterInstance.splitter);
+        dss.chainlog.setAddress("SPLITTER_MOM", address(mom));
     }
 }

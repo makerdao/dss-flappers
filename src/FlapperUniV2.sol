@@ -57,7 +57,6 @@ contract FlapperUniV2 {
 
     uint256 public live;  // Active Flag
     PipLike public pip;   // Reference price oracle
-    uint256 public hop;   // [Seconds]    Time between kicks
     uint256 public zzz;   // [Timestamp]  Last kick
     uint256 public want;  // [WAD]        Relative multiplier of the reference price to insist on in the swap.
                           //              For example: 0.98 * WAD allows 2% worse price than the reference.
@@ -103,8 +102,7 @@ contract FlapperUniV2 {
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
 
-        // Initial values for safety
-        hop  = 1 hours;
+        // Initial value for safety
         want = WAD;
 
         live = 1;
@@ -123,8 +121,7 @@ contract FlapperUniV2 {
 
     // Warning - low `want` values increase the susceptibility to oracle manipulation attacks
     function file(bytes32 what, uint256 data) external auth {
-        if      (what == "hop")  hop = data;
-        else if (what == "want") want = data;
+        if (what == "want") want = data;
         else revert("FlapperUniV2/file-unrecognized-param");
         emit File(what, data);
     }
@@ -166,9 +163,6 @@ contract FlapperUniV2 {
 
     function kick(uint256 lot, uint256) external auth returns (uint256) {
         require(live == 1, "FlapperUniV2/not-live");
-
-        require(block.timestamp >= zzz + hop, "FlapperUniV2/kicked-too-soon");
-        zzz = block.timestamp;
 
         // Check Amounts
         (uint256 _reserveDai, uint256 _reserveGem) = _getReserves();

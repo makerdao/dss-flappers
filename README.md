@@ -2,12 +2,21 @@
 
 Implementations of MakerDao surplus auctions, triggered on `vow.flap`.
 
-### FlapperUniV2
+### Splitter
 
-Exposes a `kick` operation to be triggered periodically. Its logic withdraws `DAI` from the `vow` and buys `gem` tokens on Uniswap v2. The acquired tokens, along with a proportional amount of `DAI` (saved from the initial withdraw) are deposited back into the liquidity pool. Finally, the minted LP tokens are sent to a predefined `receiver` address.
+Exposes a `kick` operation to be triggered periodically. Its logic withdraws `DAI` from the `vow` and splits it in two parts. The first part (`burn`) is sent to the underlying `flapper` contract to be processed by the burn engine. The second part (`WAD - burn`) is distributed as reward to a `farm` contract. The `kick` cadence is determined the `hop` value.
 
 Configurable Parameters:
 * `hop` - Minimum seconds interval between kicks.
+* `flapper` - The underlying burner strategy (e.g. the address of `FlapperUniV2SwapOnly`).
+* `burn` - The percentage of the `vow.bump` to be moved to the underlying `flapper`. For example, a value of 0.70 \* `WAD` corresponds to funneling 70% of the `DAI` to the burn engine.
+
+
+### FlapperUniV2
+
+Exposes a `kick` operation to be triggered periodically by the `Splitter` (at a cadence determined by `Splitter.hop()`). Its logic withdraws `DAI` from the `vow` and buys `gem` tokens on Uniswap v2. The acquired tokens, along with a proportional amount of `DAI` (saved from the initial withdraw) are deposited back into the liquidity pool. Finally, the minted LP tokens are sent to a predefined `receiver` address.
+
+Configurable Parameters:
 * `pip` - A reference price oracle, used for bounding the exchange rate of the swap.
 * `want` - Relative multiplier of the reference price to insist on in the swap. For example, a value of 0.98 * `WAD` allows for a 2% worse price than the reference.
 
@@ -17,7 +26,7 @@ Configurable Parameters:
 
 ### FlapperUniV2SwapOnly
 
-Exposes a `kick` operation to be triggered periodically. Its logic withdraws `DAI` from the `vow` and buys `gem` tokens on Uniswap v2. The acquired tokens are sent to a predefined `receiver` address.
+Exposes a `kick` operation to be triggered periodically by the `Splitter` (at a cadence determined by `Splitter.hop()`). Its logic withdraws `DAI` from the `vow` and buys `gem` tokens on Uniswap v2. The acquired tokens are sent to a predefined `receiver` address.
 
 Configurable Parameters:
 * `hop` - Minimum seconds interval between kicks.
@@ -32,14 +41,6 @@ This contract allows bypassing the governance delay when disabling the Flapper i
 
 Allows for scaling down an oracle price by a certain value. This can be useful when the `gem` is a redenominated version of an existing token, which already has a reliable oracle.
 
-### Splitter
-
-Exposes a `kick` operation to be triggered periodically. Its logic withdraws `DAI` from the `vow` and splits it in two parts. The first part (`burn`) is sent to the underlying `flapper` contract to be processed by the burn engine. The second part (`WAD - burn`) is distributed as reward to a `farm` contract. Note that the `kick` cadence is determined by `max(splitter.hop(), flapper.hop())`.
-
-Configurable Parameters:
-* `hop` - Minimum seconds interval between kicks.
-* `flapper` - The underlying burner strategy (e.g. the address of `FlapperUniV2SwapOnly`).
-* `burn` - The percentage of the `vow.bump` to be moved to the underlying `flapper`. For example, a value of 0.70 \* `WAD` corresponds to funneling 70% of the `DAI` to the burn engine.
 
 ### General Note:
 

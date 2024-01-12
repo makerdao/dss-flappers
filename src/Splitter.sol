@@ -40,8 +40,8 @@ contract Splitter {
     mapping (address => uint256) public wards;
     FlapLike    public           flapper;
     uint256     public           burn; // [WAD]       Burn percentage. 1 WAD = funneling 100% to the burn engine
-    uint32      public           hop;  // [Seconds]   Time between kicks
-    uint32      public           zzz;  // [Timestamp] Last kick
+    uint256     public           hop;  // [Seconds]   Time between kicks
+    uint256     public           zzz;  // [Timestamp] Last kick
 
     VatLike     public immutable vat;
     DaiJoinLike public immutable daiJoin;
@@ -63,6 +63,9 @@ contract Splitter {
         
         vat.hope(_daiJoin);
         
+        // Initial value for safety
+        hop  = 1 hours;
+
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }
@@ -80,7 +83,7 @@ contract Splitter {
 
     function file(bytes32 what, uint256 data) external auth {
         if      (what == "burn") burn = data;
-        else if (what == "hop")  hop  = uint32(data);
+        else if (what == "hop")  hop  = data;
         else revert("Splitter/file-unrecognized-param");
         emit File(what, data);
     }
@@ -97,7 +100,7 @@ contract Splitter {
 
     function kick(uint256 tot, uint256) external auth returns (uint256) {
         require(block.timestamp >= zzz + hop, "Splitter/kicked-too-soon");
-        zzz = uint32(block.timestamp);
+        zzz = block.timestamp;
 
         vat.move(msg.sender, address(this), tot);
 

@@ -17,15 +17,15 @@
 pragma solidity ^0.8.16;
 
 import "dss-test/DssTest.sol";
+
+import { SplitterInstance } from "deploy/SplitterInstance.sol";
+import { FlapperDeploy } from "deploy/FlapperDeploy.sol";
+import { SplitterConfig, FlapperUniV2Config, FlapperInit } from "deploy/FlapperInit.sol";
 import { Splitter } from "src/Splitter.sol";
 import { FlapperUniV2SwapOnly } from "src/FlapperUniV2SwapOnly.sol";
 import { StakingRewardsMock } from "test/mocks/StakingRewardsMock.sol";
 import { GemMock } from "test/mocks/GemMock.sol";
 import "./helpers/UniswapV2Library.sol";
-
-import { FlapperInstance } from "deploy/FlapperInstance.sol";
-import { FlapperDeploy } from "deploy/FlapperDeploy.sol";
-import { FlapperUniV2Config, SplitterConfig, FlapperInit } from "deploy/FlapperInit.sol";
 
 interface ChainlogLike {
     function getAddress(bytes32) external view returns (address);
@@ -76,7 +76,6 @@ contract SplitterTest is DssTest {
     StakingRewardsMock   public farm;
     FlapperUniV2SwapOnly public flapper;
     PipLike              public medianizer;
-    GemMock              public stakingToken;
 
     address     DAI_JOIN;
     address     SPOT;
@@ -112,19 +111,19 @@ contract SplitterTest is DssTest {
 
         medianizer.kiss(address(this));
 
-        stakingToken = new GemMock(1_000_000 ether);
-        farm = new StakingRewardsMock(PAUSE_PROXY, address(0), DAI, address(stakingToken));
+        farm = new StakingRewardsMock(PAUSE_PROXY, address(0), DAI, address(new GemMock(1_000_000 ether)));
 
         vm.stopPrank();
 
-        splitter = Splitter(FlapperDeploy.deploySplitter({
+        SplitterInstance memory splitterInstance = FlapperDeploy.deploySplitter({
             deployer: address(this),
             owner:    PAUSE_PROXY,
             daiJoin:  DAI_JOIN,
             farm:     address(farm)
-        }));
+        });
+        splitter = Splitter(splitterInstance.splitter);
 
-        FlapperInstance memory flapperInstance = FlapperDeploy.deployFlapperUniV2({
+        flapper = FlapperUniV2SwapOnly(FlapperDeploy.deployFlapperUniV2({
             deployer: address(this),
             owner:    PAUSE_PROXY,
             daiJoin:  DAI_JOIN,
@@ -133,24 +132,14 @@ contract SplitterTest is DssTest {
             pair:     UNIV2_DAI_MKR_PAIR,
             receiver: PAUSE_PROXY,
             swapOnly: true
-        });
-        flapper = FlapperUniV2SwapOnly(flapperInstance.flapper);
+        }));
 
         
-        vm.startPrank(PAUSE_PROXY);
         // Note - this part emulates the spell initialization
-        FlapperUniV2Config memory flapperCfg = FlapperUniV2Config({
-            hop:         0, // disable flapper-level rate limit
-            want:        WAD * 97 / 100,
-            pip:         address(medianizer),
-            hump:        50_000_000 * RAD,
-            bump:        5707 * RAD,
-            pair:        UNIV2_DAI_MKR_PAIR,
-            daiJoin:     DAI_JOIN,
-            caller:      address(splitter),
-            chainlogKey: "MCD_FLAP_BURN"
-        });
+        vm.startPrank(PAUSE_PROXY);
         SplitterConfig memory splitterCfg = SplitterConfig({
+            hump:            50_000_000 * RAD,
+            bump:            5707 * RAD,
             hop:             30 minutes,
             burn:            70 * WAD / 100,
             rewardsDuration: 30 minutes,
@@ -158,16 +147,23 @@ contract SplitterTest is DssTest {
             daiJoin:         DAI_JOIN,
             chainlogKey:     "MCD_FLAP_SPLIT"
         });
+        FlapperUniV2Config memory flapperCfg = FlapperUniV2Config({
+            want:        WAD * 97 / 100,
+            pip:         address(medianizer),
+            pair:        UNIV2_DAI_MKR_PAIR,
+            splitter:    address(splitter),
+            chainlogKey: "MCD_FLAP_BURN"
+        });
 
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
-        FlapperInit.initFlapperUniV2(dss, flapperInstance, flapperCfg);
-        FlapperInit.initSplitter(dss, address(splitter), splitterCfg);
+        FlapperInit.initSplitter(dss, splitterInstance, splitterCfg);
+        FlapperInit.initFlapperUniV2(dss, address(flapper), flapperCfg);
         FlapperInit.initDirectOracle(address(flapper));
         vm.stopPrank();
 
+        assertEq(dss.chainlog.getAddress("MCD_FLAP_SPLIT"), splitterInstance.splitter);
         assertEq(dss.chainlog.getAddress("MCD_FLAP_BURN"), address(flapper));
-        assertEq(dss.chainlog.getAddress("MCD_FLAP_SPLIT"), address(splitter));
-        assertEq(dss.chainlog.getAddress("FLAPPER_MOM"), address(flapperInstance.mom));
+        assertEq(dss.chainlog.getAddress("SPLITTER_MOM"), splitterInstance.mom);
 
         // Add initial liquidity if needed
         (uint256 reserveDai, ) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);
@@ -295,6 +291,7 @@ contract SplitterTest is DssTest {
         emit Rely(address(this));
         Splitter s = new Splitter(DAI_JOIN, address(0xfff));
 
+        assertEq(s.hop(),  1 hours);
         assertEq(address(s.daiJoin()),  DAI_JOIN);
         assertEq(address(s.vat()), address(vat));
         assertEq(address(s.farm()), address(0xfff));
@@ -370,33 +367,6 @@ contract SplitterTest is DssTest {
         uint256 _marginalWant = marginalWant(MKR, address(medianizer));
         vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
         vm.expectRevert("Splitter/kicked-too-soon");
-        vow.flap();
-    }
-
-    function testKickAfterMaxHop() public {
-        vm.prank(PAUSE_PROXY); flapper.file("hop", 60 minutes);
-        assertGt(flapper.hop(), splitter.hop());
-
-        doKick();
-        vm.warp(block.timestamp + flapper.hop());
-
-        // make sure the slippage of the first kick doesn't block us
-        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
-        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
-        doKick();
-    }
-
-    function testKickBeforeMaxHop() public {
-        vm.prank(PAUSE_PROXY); flapper.file("hop", 60 minutes);
-        assertGt(flapper.hop(), splitter.hop());
-
-        doKick();
-        vm.warp(block.timestamp + flapper.hop() - 1 seconds);
-
-        // make sure the slippage of the first kick doesn't block us
-        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
-        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
-        vm.expectRevert("FlapperUniV2SwapOnly/kicked-too-soon");
         vow.flap();
     }
 

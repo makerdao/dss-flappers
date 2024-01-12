@@ -19,14 +19,13 @@ pragma solidity ^0.8.16;
 import "dss-interfaces/Interfaces.sol";
 import { ScriptTools } from "dss-test/ScriptTools.sol";
 
-import { FlapperInstance } from "./FlapperInstance.sol";
+import { SplitterInstance } from "./SplitterInstance.sol";
 import { FlapperUniV2 } from "src/FlapperUniV2.sol";
 import { FlapperUniV2SwapOnly } from "src/FlapperUniV2SwapOnly.sol";
-import { FlapperMom } from "src/FlapperMom.sol";
+import { SplitterMom } from "src/SplitterMom.sol";
 import { OracleWrapper } from "src/OracleWrapper.sol";
 import { Splitter } from "src/Splitter.sol";
 
-// Deploy a Flapper instance
 library FlapperDeploy {
 
     function deployFlapperUniV2(
@@ -38,18 +37,13 @@ library FlapperDeploy {
         address pair,
         address receiver,
         bool    swapOnly
-    ) internal returns (FlapperInstance memory flapperInstance) {
-        address _flapper =
+    ) internal returns (address flapper) {
+        flapper =
             swapOnly ? address(new FlapperUniV2SwapOnly(daiJoin, spotter, gem, pair, receiver))
                      : address(new FlapperUniV2(daiJoin, spotter, gem, pair, receiver))
         ;
-        address _mom = address(new FlapperMom(_flapper));
 
-        ScriptTools.switchOwner(_flapper, deployer, owner);
-        DSAuthAbstract(_mom).setOwner(owner);
-
-        flapperInstance.flapper = _flapper;
-        flapperInstance.mom     = _mom;
+        ScriptTools.switchOwner(flapper, deployer, owner);
     }
 
     function deployOracleWrapper(
@@ -65,8 +59,14 @@ library FlapperDeploy {
         address owner,
         address daiJoin,
         address farm
-    ) internal returns (address splitter) {
-        splitter = address(new Splitter(daiJoin, farm));
+    ) internal returns (SplitterInstance memory splitterInstance) {
+        address splitter = address(new Splitter(daiJoin, farm));
+        address mom = address(new SplitterMom(splitter));
+
         ScriptTools.switchOwner(splitter, deployer, owner);
+        DSAuthAbstract(mom).setOwner(owner);
+
+        splitterInstance.splitter = splitter;
+        splitterInstance.mom      = mom;
     }
 }

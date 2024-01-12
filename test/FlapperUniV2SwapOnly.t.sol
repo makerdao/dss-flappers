@@ -17,13 +17,16 @@
 pragma solidity ^0.8.16;
 
 import "dss-test/DssTest.sol";
-import { FlapperUniV2SwapOnly } from "src/FlapperUniV2SwapOnly.sol";
-import "./helpers/UniswapV2Library.sol";
 
 import { DssInstance, MCD } from "dss-test/MCD.sol";
-import { FlapperInstance } from "deploy/FlapperInstance.sol";
+import { SplitterInstance } from "deploy/SplitterInstance.sol";
 import { FlapperDeploy } from "deploy/FlapperDeploy.sol";
-import { FlapperUniV2Config, FlapperInit } from "deploy/FlapperInit.sol";
+import { SplitterConfig, FlapperUniV2Config, FlapperInit } from "deploy/FlapperInit.sol";
+import { Splitter } from "src/Splitter.sol";
+import { FlapperUniV2SwapOnly } from "src/FlapperUniV2SwapOnly.sol";
+import { StakingRewardsMock } from "test/mocks/StakingRewardsMock.sol";
+import { GemMock } from "test/mocks/GemMock.sol";
+import "./helpers/UniswapV2Library.sol";
 
 interface ChainlogLike {
     function getAddress(bytes32) external view returns (address);
@@ -89,6 +92,7 @@ contract MockMedianizer {
 contract FlapperUniV2SwapOnlyTest is DssTest {
     using stdStorage for StdStorage;
 
+    Splitter             public splitter;
     FlapperUniV2SwapOnly public flapper;
     FlapperUniV2SwapOnly public linkFlapper;
     MockMedianizer       public medianizer;
@@ -130,6 +134,29 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         end           = EndLike(ChainlogLike(LOG).getAddress("MCD_END"));
         spotter       = SpotterLike(ChainlogLike(LOG).getAddress("MCD_SPOT"));
 
+        address farm = address(new StakingRewardsMock(PAUSE_PROXY, address(0), DAI, address(new GemMock(1_000_000 ether))));
+        SplitterInstance memory splitterInstance = FlapperDeploy.deploySplitter({
+            deployer: address(this),
+            owner:    PAUSE_PROXY,
+            daiJoin:  DAI_JOIN,
+            farm:     farm
+        });
+        splitter = Splitter(splitterInstance.splitter);
+        SplitterConfig memory splitterCfg = SplitterConfig({
+            hump:            50_000_000 * RAD,
+            bump:            5707 * RAD,
+            hop:             30 minutes,
+            burn:            WAD,
+            rewardsDuration: 30 minutes,
+            farm:            farm,
+            chainlogKey:     "MCD_FLAP_SPLIT"
+        });
+        DssInstance memory dss = MCD.loadFromChainlog(LOG);
+        vm.startPrank(PAUSE_PROXY);
+        FlapperInit.initSplitter(dss, splitterInstance, splitterCfg);
+        vm.stopPrank();
+        assertEq(dss.chainlog.getAddress("MCD_FLAP_SPLIT"), address(splitter));
+
         (flapper, medianizer) = setUpFlapper(MKR, UNIV2_DAI_MKR_PAIR, 727 * WAD) ;
         assertEq(flapper.daiFirst(), true);
 
@@ -159,7 +186,7 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         _medianizer = new MockMedianizer();
         _medianizer.kiss(address(this));
 
-        FlapperInstance memory flapperInstance = FlapperDeploy.deployFlapperUniV2({
+        _flapper = FlapperUniV2SwapOnly(FlapperDeploy.deployFlapperUniV2({
             deployer: address(this),
             owner:    PAUSE_PROXY,
             daiJoin:  DAI_JOIN,
@@ -168,30 +195,24 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
             pair:     pair,
             receiver: PAUSE_PROXY,
             swapOnly: true
-        });
-        _flapper = FlapperUniV2SwapOnly(flapperInstance.flapper);
+        }));
 
         // Note - this part emulates the spell initialization
         vm.startPrank(PAUSE_PROXY);
         FlapperUniV2Config memory cfg = FlapperUniV2Config({
-            hop  : 30 minutes,
-            want : WAD * 97 / 100,
-            pip  : address(_medianizer),
-            hump : 50_000_000 * RAD,
-            bump : 5707 * RAD,
-            pair: pair,
-            daiJoin : DAI_JOIN,
-            caller: address(vow),
-            chainlogKey: "MCD_FLAP"
+            want:        WAD * 97 / 100,
+            pip:         address(_medianizer),
+            pair:        pair,
+            daiJoin:     DAI_JOIN,
+            splitter:    address(splitter),
+            chainlogKey: "MCD_FLAP_BURN"
         });
-
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
-        FlapperInit.initFlapperUniV2(dss, flapperInstance, cfg);
+        FlapperInit.initFlapperUniV2(dss, address(_flapper), cfg);
         FlapperInit.initDirectOracle(address(_flapper));
         vm.stopPrank();
 
-        assertEq(dss.chainlog.getAddress("MCD_FLAP"), address(flapperInstance.flapper));
-        assertEq(dss.chainlog.getAddress("FLAPPER_MOM"), address(flapperInstance.mom));
+        assertEq(dss.chainlog.getAddress("MCD_FLAP_BURN"), address(_flapper));
 
         // Add initial liquidity if needed
         (uint256 reserveDai, ) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, gem);
@@ -210,7 +231,7 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
     }
 
     function changeFlapper(address _flapper) internal {
-        vm.prank(PAUSE_PROXY); vow.file("flapper", address(_flapper));
+        vm.prank(PAUSE_PROXY); splitter.file("flapper", address(_flapper));
     }
 
     function refAmountOut(uint256 amountIn, address pip) internal view returns (uint256) {
@@ -281,7 +302,6 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
 
     function testDefaultValues() public {
         FlapperUniV2SwapOnly f = new FlapperUniV2SwapOnly(DAI_JOIN, SPOT, MKR, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
-        assertEq(f.hop(),  1 hours);
         assertEq(f.want(), WAD);
         assertEq(f.live(), 1);
         assertEq(f.zzz(),  0);
@@ -307,7 +327,7 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
     }
 
     function testFileUint() public {
-        checkFileUint(address(flapper), "FlapperUniV2SwapOnly", ["hop", "want"]);
+        checkFileUint(address(flapper), "FlapperUniV2SwapOnly", ["want"]);
     }
 
     function testFileAddress() public {
@@ -341,45 +361,6 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         uint256 _marginalWant = marginalWant(LINK, address(linkMedianizer));
         vm.prank(PAUSE_PROXY); linkFlapper.file("want", _marginalWant * 101 / 100);
         vm.expectRevert("FlapperUniV2SwapOnly/insufficient-buy-amount");
-        vow.flap();
-    }
-
-    function testKickAfterHop() public {
-        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
-        vm.warp(block.timestamp + flapper.hop());
-
-        // make sure the slippage of the first kick doesn't block us
-        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
-        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
-        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
-    }
-
-    function testKickBeforeHop() public {
-        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
-        vm.warp(block.timestamp + flapper.hop() - 1 seconds);
-
-        // make sure the slippage of the first kick doesn't block us
-        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
-        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
-        vm.expectRevert("FlapperUniV2SwapOnly/kicked-too-soon");
-        vow.flap();
-    }
-
-    function testKickAfterStoppedWithHop() public {
-        uint256 initialHop = flapper.hop();
-
-        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
-        vm.warp(block.timestamp + flapper.hop());
-
-        // make sure the slippage of the first kick doesn't block us
-        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
-        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
-
-        vm.prank(PAUSE_PROXY); flapper.file("hop", type(uint256).max);
-        vm.expectRevert(bytes(abi.encodeWithSignature("Panic(uint256)", 0x11))); // arithmetic error
-        vow.flap();
-
-        vm.prank(PAUSE_PROXY); flapper.file("hop", initialHop);
         vow.flap();
     }
 
