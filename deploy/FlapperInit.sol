@@ -48,12 +48,17 @@ interface PairLike {
     function token1() external view returns (address);
 }
 
+interface DaiJoinLike {
+    function dai() external view returns (address);
+}
+
 struct FlapperUniV2Config {
     uint256 hop;
     uint256 want;
     address pip;
     uint256 hump;
     uint256 bump;
+    address daiJoin;
 }
 
 library FlapperInit {
@@ -69,14 +74,15 @@ library FlapperInit {
 
         // Sanity checks
         require(flapper.vat()     == address(dss.vat),     "Flapper vat mismatch");
-        require(flapper.daiJoin() == address(dss.daiJoin), "Flapper daiJoin mismatch");
+        require(flapper.daiJoin() == cfg.daiJoin,          "Flapper daiJoin mismatch");
         require(flapper.spotter() == address(dss.spotter), "Flapper spotter mismatch");
 
         PairLike pair = PairLike(flapper.pair());
-        (address pairDai, address pairGem) = pair.token0() == address(dss.dai) ? (pair.token0(), pair.token1())
-                                                                               : (pair.token1(), pair.token0());
-        require(pairDai == address(dss.dai), "Dai mismatch");
-        require(pairGem == flapper.gem(),    "Gem mismatch");
+        address  dai  = DaiJoinLike(cfg.daiJoin).dai();
+        (address pairDai, address pairGem) = pair.token0() == dai ? (pair.token0(), pair.token1())
+                                                                  : (pair.token1(), pair.token0());
+        require(pairDai == dai,           "Dai mismatch");
+        require(pairGem == flapper.gem(), "Gem mismatch");
 
         require(cfg.hop >= 5 minutes, "hop too low");
         require(cfg.want >= WAD * 90 / 100, "want too low");
