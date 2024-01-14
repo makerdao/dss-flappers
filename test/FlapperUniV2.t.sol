@@ -444,28 +444,27 @@ contract FlapperUniV2Test is DssTest {
     }
 
     function testEquivalenceToSellLotAndDeposit() public {
-        uint256 initialState = vm.snapshot();
-
         deal(DAI, address(this), vow.bump() * 3); // certainly enough for the sell and deposit
         GemLike(DAI).approve(UNIV2_DAI_MKR_PAIR, vow.bump() * 3);
 
         uint256 initialDai = GemLike(DAI).balanceOf(address(this));
         uint256 initialLp = GemLike(UNIV2_DAI_MKR_PAIR).balanceOf(PAUSE_PROXY);
 
-        sellLotAndDeposit(PairLike(UNIV2_DAI_MKR_PAIR), MKR, true, PAUSE_PROXY, vow.bump());
+        uint256 initialState = vm.snapshot();
 
+        // Old version
+        sellLotAndDeposit(PairLike(UNIV2_DAI_MKR_PAIR), MKR, true, PAUSE_PROXY, vow.bump());
         uint256 totalDaiConsumed = initialDai - GemLike(DAI).balanceOf(address(this));
-        uint256 boughtLpSellLot = GemLike(UNIV2_DAI_MKR_PAIR).balanceOf(PAUSE_PROXY) - initialLp;
+        uint256 boughtLpOldVersion = GemLike(UNIV2_DAI_MKR_PAIR).balanceOf(PAUSE_PROXY) - initialLp;
 
         vm.revertTo(initialState);
 
-        // The current flapper gets the total vat.dai to consume.
-        vm.prank(PAUSE_PROXY); vow.file("bump", totalDaiConsumed * RAY);
-        initialLp = GemLike(UNIV2_DAI_MKR_PAIR).balanceOf(PAUSE_PROXY);
-
+        // New version
+        vm.prank(PAUSE_PROXY); vow.file("bump", totalDaiConsumed * RAY); // The current flapper gets the total vat.dai to consume.
         doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
+        uint256 boughtLpNewVersion = GemLike(UNIV2_DAI_MKR_PAIR).balanceOf(PAUSE_PROXY) - initialLp;
 
-        uint256 boughtLpTotalLot = GemLike(UNIV2_DAI_MKR_PAIR).balanceOf(PAUSE_PROXY) - initialLp;
-        assertEq(boughtLpTotalLot, boughtLpSellLot);
+        // Compare results for both versions
+        assertEq(boughtLpNewVersion, boughtLpOldVersion);
     }
 }
