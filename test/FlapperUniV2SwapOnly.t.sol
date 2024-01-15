@@ -147,7 +147,6 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
             bump:            5707 * RAD,
             hop:             30 minutes,
             burn:            WAD,
-            rewardsDuration: 30 minutes,
             daiJoin:         DAI_JOIN,
             farm:            farm,
             chainlogKey:     "MCD_FLAP_SPLIT"

@@ -82,7 +82,6 @@ struct SplitterConfig {
     uint256 bump;
     uint256 hop;
     uint256 burn;
-    uint256 rewardsDuration;
     address farm;
     address daiJoin;
     bytes32 chainlogKey;
@@ -157,7 +156,7 @@ library FlapperInit {
 
         FarmLike farm = FarmLike(cfg.farm);
         farm.setRewardsDistribution(splitterInstance.splitter);
-        farm.setRewardsDuration(cfg.rewardsDuration);
+        farm.setRewardsDuration(cfg.hop);
 
         dss.vow.file("flapper", splitterInstance.splitter);
         dss.vow.file("hump", cfg.hump);

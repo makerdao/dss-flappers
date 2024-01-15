@@ -142,7 +142,6 @@ contract SplitterTest is DssTest {
             bump:            5707 * RAD,
             hop:             30 minutes,
             burn:            70 * WAD / 100,
-            rewardsDuration: 30 minutes,
             farm:            address(farm),
             daiJoin:         DAI_JOIN,
             chainlogKey:     "MCD_FLAP_SPLIT"
@@ -398,7 +397,6 @@ contract SplitterTest is DssTest {
     function checkChangeRewardDuration(uint256 newDuration) private {
         uint256 topup = 5707 * (WAD - 70 * WAD / 100);
         doKick();
-        assertEq(farm.rewardsDuration(), splitter.hop());
         assertEq(farm.rewardsDuration(), 30 minutes);
         assertEq(farm.rewardRate(), topup / 30 minutes);
         uint256 prevRewardRate = farm.rewardRate();
