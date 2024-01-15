@@ -158,10 +158,10 @@ contract FlapperUniV2Test is DssTest {
         FlapperInit.initSplitter(dss, splitterInstance, splitterCfg);
         vm.stopPrank();
 
-        (flapper, medianizer) = setUpFlapper(MKR, UNIV2_DAI_MKR_PAIR, 727 * WAD) ;
+        (flapper, medianizer) = setUpFlapper(MKR, UNIV2_DAI_MKR_PAIR, 727 * WAD, "MCD_FLAP") ;
         assertEq(flapper.daiFirst(), true);
 
-        (linkFlapper, linkMedianizer) = setUpFlapper(LINK, UNIV2_LINK_DAI_PAIR, 654 * WAD / 100);
+        (linkFlapper, linkMedianizer) = setUpFlapper(LINK, UNIV2_LINK_DAI_PAIR, 654 * WAD / 100, bytes32(0));
         assertEq(linkFlapper.daiFirst(), false);
 
         changeFlapper(address(flapper)); // Use MKR flapper by default
@@ -180,7 +180,7 @@ contract FlapperUniV2Test is DssTest {
         }
     }
 
-    function setUpFlapper(address gem, address pair, uint256 price)
+    function setUpFlapper(address gem, address pair, uint256 price, bytes32 prevChainlogKey)
         internal
         returns (FlapperUniV2 _flapper, MockMedianizer _medianizer)
     {
@@ -206,7 +206,7 @@ contract FlapperUniV2Test is DssTest {
             pair:            pair,
             daiJoin:         DAI_JOIN,
             splitter:        address(splitter),
-            prevChainlogKey: "MCD_FLAP",
+            prevChainlogKey: prevChainlogKey,
             chainlogKey:     "MCD_FLAP_LP"
         });
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
@@ -215,6 +215,10 @@ contract FlapperUniV2Test is DssTest {
         vm.stopPrank();
 
         assertEq(dss.chainlog.getAddress("MCD_FLAP_LP"), address(_flapper));
+        if (prevChainlogKey != bytes32(0)) {
+            vm.expectRevert("dss-chain-log/invalid-key");
+            dss.chainlog.getAddress(prevChainlogKey);
+        }
 
         // Add initial liquidity if needed
         (uint256 reserveDai, ) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, gem);

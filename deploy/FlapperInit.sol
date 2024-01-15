@@ -119,7 +119,7 @@ library FlapperInit {
 
         SplitterLike(cfg.splitter).file("flapper", flapper);
 
-        if (cfg.prevChainlogKey != bytes32(0)) dss.chainlog.setAddress(cfg.prevChainlogKey, address(0));
+        if (cfg.prevChainlogKey != bytes32(0)) dss.chainlog.removeAddress(cfg.prevChainlogKey);
         dss.chainlog.setAddress(cfg.chainlogKey, flapper);
     }
 
@@ -165,7 +165,7 @@ library FlapperInit {
         mom.setAuthority(dss.chainlog.getAddress("MCD_ADM"));
 
         dss.chainlog.setAddress(cfg.chainlogKey, splitterInstance.splitter);
-        dss.chainlog.setAddress("FLAPPER_MOM", address(0));
+        dss.chainlog.removeAddress("FLAPPER_MOM");
         dss.chainlog.setAddress("SPLITTER_MOM", address(mom));
     }
 }

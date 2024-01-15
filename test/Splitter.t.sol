@@ -164,6 +164,8 @@ contract SplitterTest is DssTest {
 
         assertEq(dss.chainlog.getAddress("MCD_FLAP_SPLIT"), splitterInstance.splitter);
         assertEq(dss.chainlog.getAddress("MCD_FLAP_BURN"), address(flapper));
+        vm.expectRevert("dss-chain-log/invalid-key");
+        dss.chainlog.getAddress("FLAPPER_MOM");
         assertEq(dss.chainlog.getAddress("SPLITTER_MOM"), splitterInstance.mom);
 
         // Add initial liquidity if needed
