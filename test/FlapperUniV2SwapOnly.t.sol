@@ -19,13 +19,10 @@ pragma solidity ^0.8.16;
 import "dss-test/DssTest.sol";
 
 import { DssInstance, MCD } from "dss-test/MCD.sol";
-import { SplitterInstance } from "deploy/SplitterInstance.sol";
 import { FlapperDeploy } from "deploy/FlapperDeploy.sol";
 import { SplitterConfig, FlapperUniV2Config, FlapperInit } from "deploy/FlapperInit.sol";
-import { Splitter } from "src/Splitter.sol";
 import { FlapperUniV2SwapOnly } from "src/FlapperUniV2SwapOnly.sol";
-import { StakingRewardsMock } from "test/mocks/StakingRewardsMock.sol";
-import { GemMock } from "test/mocks/GemMock.sol";
+import { SplitterMock } from "test/mocks/SplitterMock.sol";
 import "./helpers/UniswapV2Library.sol";
 
 interface ChainlogLike {
@@ -35,15 +32,11 @@ interface ChainlogLike {
 interface VatLike {
     function sin(address) external view returns (uint256);
     function dai(address) external view returns (uint256);
-    function live() external view returns (uint256);
-    function move(address, address, uint256) external;
-    function cage() external;
 }
 
 interface VowLike {
     function file(bytes32, address) external;
     function file(bytes32, uint256) external;
-    function rely(address) external;
     function flap() external returns (uint256);
     function Sin() external view returns (uint256);
     function Ash() external view returns (uint256);
@@ -92,7 +85,7 @@ contract MockMedianizer {
 contract FlapperUniV2SwapOnlyTest is DssTest {
     using stdStorage for StdStorage;
 
-    Splitter             public splitter;
+    SplitterMock         public splitter;
     FlapperUniV2SwapOnly public flapper;
     FlapperUniV2SwapOnly public linkFlapper;
     MockMedianizer       public medianizer;
@@ -134,26 +127,11 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         end           = EndLike(ChainlogLike(LOG).getAddress("MCD_END"));
         spotter       = SpotterLike(ChainlogLike(LOG).getAddress("MCD_SPOT"));
 
-        address farm = address(new StakingRewardsMock(PAUSE_PROXY, address(0), DAI, address(new GemMock(1_000_000 ether))));
-        SplitterInstance memory splitterInstance = FlapperDeploy.deploySplitter({
-            deployer: address(this),
-            owner:    PAUSE_PROXY,
-            daiJoin:  DAI_JOIN,
-            farm:     farm
-        });
-        splitter = Splitter(splitterInstance.splitter);
-        SplitterConfig memory splitterCfg = SplitterConfig({
-            hump:            50_000_000 * RAD,
-            bump:            5707 * RAD,
-            hop:             30 minutes,
-            burn:            WAD,
-            daiJoin:         DAI_JOIN,
-            farm:            farm,
-            chainlogKey:     "MCD_FLAP_SPLIT"
-        });
-        DssInstance memory dss = MCD.loadFromChainlog(LOG);
+        splitter = new SplitterMock(address(vat));
         vm.startPrank(PAUSE_PROXY);
-        FlapperInit.initSplitter(dss, splitterInstance, splitterCfg);
+        vow.file("hump", 50_000_000 * RAD);
+        vow.file("bump", 5707 * RAD);
+        vow.file("flapper", address(splitter));
         vm.stopPrank();
 
         (flapper, medianizer) = setUpFlapper(MKR, UNIV2_DAI_MKR_PAIR, 727 * WAD) ;
