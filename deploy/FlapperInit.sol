@@ -73,6 +73,7 @@ struct FlapperUniV2Config {
     address pair;
     address daiJoin;
     address splitter;
+    bytes32 prevChainlogKey;
     bytes32 chainlogKey;
 }
 
@@ -92,7 +93,7 @@ library FlapperInit {
 
     function initFlapperUniV2(
         DssInstance        memory dss,
-        address flapper,
+        address                   flapper,
         FlapperUniV2Config memory cfg
     ) internal {
         FlapperUniV2Like flapper_ = FlapperUniV2Like(flapper);
@@ -108,17 +109,18 @@ library FlapperInit {
         address  dai  = DaiJoinLike(cfg.daiJoin).dai();
         (address pairDai, address pairGem) = pair.token0() == dai ? (pair.token0(), pair.token1())
                                                                   : (pair.token1(), pair.token0());
-        require(pairDai == dai, "Dai mismatch");
-        require(pairGem == flapper_.gem(),    "Gem mismatch");
+        require(pairDai == dai,            "Dai mismatch");
+        require(pairGem == flapper_.gem(), "Gem mismatch");
 
         require(cfg.want >= WAD * 90 / 100, "want too low");
 
         flapper_.file("want", cfg.want);
         flapper_.file("pip",  cfg.pip);
-        flapper_.rely(address(cfg.splitter));
+        flapper_.rely(cfg.splitter);
 
         SplitterLike(cfg.splitter).file("flapper", flapper);
 
+        if (cfg.prevChainlogKey != bytes32(0)) dss.chainlog.setAddress(cfg.prevChainlogKey, address(0));
         dss.chainlog.setAddress(cfg.chainlogKey, flapper);
     }
 
@@ -151,20 +153,20 @@ library FlapperInit {
         splitter.file("hop",  cfg.hop);
         splitter.file("burn", cfg.burn);
         splitter.rely(address(mom));
+        splitter.rely(address(dss.vow));
 
         FarmLike farm = FarmLike(cfg.farm);
         farm.setRewardsDistribution(splitterInstance.splitter);
         farm.setRewardsDuration(cfg.rewardsDuration);
 
-        splitter.rely(address(dss.vow));
         dss.vow.file("flapper", splitterInstance.splitter);
-
         dss.vow.file("hump", cfg.hump);
         dss.vow.file("bump", cfg.bump);
 
         mom.setAuthority(dss.chainlog.getAddress("MCD_ADM"));
 
         dss.chainlog.setAddress(cfg.chainlogKey, splitterInstance.splitter);
+        dss.chainlog.setAddress("FLAPPER_MOM", address(0));
         dss.chainlog.setAddress("SPLITTER_MOM", address(mom));
     }
 }

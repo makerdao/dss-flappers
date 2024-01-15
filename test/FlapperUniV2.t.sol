@@ -157,7 +157,6 @@ contract FlapperUniV2Test is DssTest {
         vm.startPrank(PAUSE_PROXY);
         FlapperInit.initSplitter(dss, splitterInstance, splitterCfg);
         vm.stopPrank();
-        assertEq(dss.chainlog.getAddress("MCD_FLAP_SPLIT"), address(splitter));
 
         (flapper, medianizer) = setUpFlapper(MKR, UNIV2_DAI_MKR_PAIR, 727 * WAD) ;
         assertEq(flapper.daiFirst(), true);
@@ -202,19 +201,20 @@ contract FlapperUniV2Test is DssTest {
         // Note - this part emulates the spell initialization
         vm.startPrank(PAUSE_PROXY);
         FlapperUniV2Config memory cfg = FlapperUniV2Config({
-            want:        WAD * 97 / 100,
-            pip:         address(_medianizer),
-            pair:        pair,
-            daiJoin:     DAI_JOIN,
-            splitter:    address(splitter),
-            chainlogKey: "MCD_FLAP_LP"
+            want:            WAD * 97 / 100,
+            pip:             address(_medianizer),
+            pair:            pair,
+            daiJoin:         DAI_JOIN,
+            splitter:        address(splitter),
+            prevChainlogKey: "MCD_FLAP",
+            chainlogKey:     "MCD_FLAP_LP"
         });
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
         FlapperInit.initFlapperUniV2(dss, address(_flapper), cfg);
         FlapperInit.initDirectOracle(address(_flapper));
         vm.stopPrank();
 
-        assertEq(dss.chainlog.getAddress("MCD_FLAP_BURN"), address(_flapper));
+        assertEq(dss.chainlog.getAddress("MCD_FLAP_LP"), address(_flapper));
 
         // Add initial liquidity if needed
         (uint256 reserveDai, ) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, gem);
@@ -309,7 +309,6 @@ contract FlapperUniV2Test is DssTest {
         FlapperUniV2 f = new FlapperUniV2(DAI_JOIN, SPOT, MKR, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
         assertEq(f.want(), WAD);
         assertEq(f.live(), 1);
-        assertEq(f.zzz(),  0);
         assertEq(f.wards(address(this)), 1);
     }
 

@@ -63,8 +63,7 @@ contract Splitter {
         
         vat.hope(_daiJoin);
         
-        // Initial value for safety
-        hop  = 1 hours;
+        hop  = 1 hours; // Initial value for safety
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);

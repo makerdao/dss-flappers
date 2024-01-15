@@ -100,12 +100,13 @@ contract SplitterMomTest is DssTest {
             chainlogKey:     "MCD_FLAP_SPLIT"
         });
         FlapperUniV2Config memory flapperCfg = FlapperUniV2Config({
-            want:        1e18,
-            pip:         address(0),
-            pair:        UNIV2_DAI_MKR_PAIR,
-            daiJoin:     DAI_JOIN,
-            splitter:    address(splitter),
-            chainlogKey: "MCD_FLAP_BURN"
+            want:            1e18,
+            pip:             address(0),
+            pair:            UNIV2_DAI_MKR_PAIR,
+            daiJoin:         DAI_JOIN,
+            splitter:        address(splitter),
+            prevChainlogKey: "MCD_FLAP",
+            chainlogKey:     "MCD_FLAP_LP"
         });
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
 

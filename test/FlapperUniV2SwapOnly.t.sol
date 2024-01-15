@@ -155,7 +155,6 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         vm.startPrank(PAUSE_PROXY);
         FlapperInit.initSplitter(dss, splitterInstance, splitterCfg);
         vm.stopPrank();
-        assertEq(dss.chainlog.getAddress("MCD_FLAP_SPLIT"), address(splitter));
 
         (flapper, medianizer) = setUpFlapper(MKR, UNIV2_DAI_MKR_PAIR, 727 * WAD) ;
         assertEq(flapper.daiFirst(), true);
@@ -200,12 +199,13 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         // Note - this part emulates the spell initialization
         vm.startPrank(PAUSE_PROXY);
         FlapperUniV2Config memory cfg = FlapperUniV2Config({
-            want:        WAD * 97 / 100,
-            pip:         address(_medianizer),
-            pair:        pair,
-            daiJoin:     DAI_JOIN,
-            splitter:    address(splitter),
-            chainlogKey: "MCD_FLAP_BURN"
+            want:            WAD * 97 / 100,
+            pip:             address(_medianizer),
+            pair:            pair,
+            daiJoin:         DAI_JOIN,
+            splitter:        address(splitter),
+            prevChainlogKey: bytes32(0),
+            chainlogKey:     "MCD_FLAP_BURN"
         });
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
         FlapperInit.initFlapperUniV2(dss, address(_flapper), cfg);
@@ -304,7 +304,6 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         FlapperUniV2SwapOnly f = new FlapperUniV2SwapOnly(DAI_JOIN, SPOT, MKR, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
         assertEq(f.want(), WAD);
         assertEq(f.live(), 1);
-        assertEq(f.zzz(),  0);
         assertEq(f.wards(address(this)), 1);
     }
 

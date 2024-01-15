@@ -51,7 +51,6 @@ contract FlapperUniV2SwapOnly {
 
     uint256 public live;  // Active Flag
     PipLike public pip;   // Reference price oracle
-    uint256 public zzz;   // [Timestamp]  Last kick
     uint256 public want;  // [WAD]        Relative multiplier of the reference price to insist on in the swap.
                           //              For example: 0.98 * WAD allows 2% worse price than the reference.
 
@@ -96,8 +95,7 @@ contract FlapperUniV2SwapOnly {
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
 
-        // Initial value for safety
-        want = WAD;
+        want = WAD; // Initial value for safety
 
         live = 1;
     }

@@ -148,11 +148,12 @@ contract SplitterTest is DssTest {
             chainlogKey:     "MCD_FLAP_SPLIT"
         });
         FlapperUniV2Config memory flapperCfg = FlapperUniV2Config({
-            want:        WAD * 97 / 100,
-            pip:         address(medianizer),
-            pair:        UNIV2_DAI_MKR_PAIR,
-            splitter:    address(splitter),
-            chainlogKey: "MCD_FLAP_BURN"
+            want:            WAD * 97 / 100,
+            pip:             address(medianizer),
+            pair:            UNIV2_DAI_MKR_PAIR,
+            splitter:        address(splitter),
+            prevChainlogKey: bytes32(0),
+            chainlogKey:     "MCD_FLAP_BURN"
         });
 
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
@@ -190,13 +191,6 @@ contract SplitterTest is DssTest {
         // Heal if needed
         if (vat.sin(address(vow)) > vow.Sin() + vow.Ash()) {
             vow.heal(vat.sin(address(vow)) - vow.Sin() - vow.Ash());
-        }
-    }
-
-    function divup(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        // Note: _divup(0,0) will return 0 differing from natural solidity division
-        unchecked {
-            z = x != 0 ? ((x - 1) / y) + 1 : 0;
         }
     }
 
@@ -282,8 +276,13 @@ contract SplitterTest is DssTest {
         }
 
         assertEq(GemLike(DAI).balanceOf(address(farm)), initialFarmDai + farmReward);
-        assertEq(farm.rewardRate(), splitter.burn() == WAD ? prevRewardRate : (farmLeftover + farmReward) / farm.rewardsDuration());
-        assertEq(farm.lastUpdateTime(), splitter.burn() == WAD ? prevLastUpdateTime : block.timestamp); 
+        if (splitter.burn() == WAD) {
+            assertEq(farm.rewardRate(), prevRewardRate);
+            assertEq(farm.lastUpdateTime(), prevLastUpdateTime); 
+        } else {
+            assertEq(farm.rewardRate(), (farmLeftover + farmReward) / farm.rewardsDuration());
+            assertEq(farm.lastUpdateTime(), block.timestamp); 
+        }
     }
 
     function testConstructor() public {
@@ -291,7 +290,8 @@ contract SplitterTest is DssTest {
         emit Rely(address(this));
         Splitter s = new Splitter(DAI_JOIN, address(0xfff));
 
-        assertEq(s.hop(),  1 hours);
+        assertEq(s.hop(), 1 hours);
+        assertEq(s.zzz(), 0);
         assertEq(address(s.daiJoin()),  DAI_JOIN);
         assertEq(address(s.vat()), address(vat));
         assertEq(address(s.farm()), address(0xfff));
