@@ -146,7 +146,7 @@ contract SplitterTest is DssTest {
             hump:        50_000_000 * RAD,
             bump:        5707 * RAD,
             pair:        UNIV2_DAI_MKR_PAIR,
-            daiJoin: DAI_JOIN,
+            daiJoin:     DAI_JOIN,
             caller:      address(splitter),
             chainlogKey: "MCD_FLAP_BURN"
         });
@@ -155,6 +155,7 @@ contract SplitterTest is DssTest {
             burn:            70 * WAD / 100,
             rewardsDuration: 30 minutes,
             farm:            address(farm),
+            daiJoin:         DAI_JOIN,
             chainlogKey:     "MCD_FLAP_SPLIT"
         });
 
@@ -183,7 +184,7 @@ contract SplitterTest is DssTest {
         }
 
         // Create additional surplus if needed
-        uint256 bumps = 2 * vow.bump(); // two kicks
+        uint256 bumps = 3 * vow.bump(); // three kicks
         if (vat.dai(address(vow)) < vat.sin(address(vow)) + bumps + vow.hump()) {
             stdstore.target(address(vat)).sig("dai(address)").with_key(address(vow)).depth(0).checked_write(
                 vat.sin(address(vow)) + bumps + vow.hump()

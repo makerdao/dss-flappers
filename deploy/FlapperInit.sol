@@ -88,6 +88,7 @@ struct SplitterConfig {
     uint256 burn;
     uint256 rewardsDuration;
     address farm;
+    address daiJoin;
     bytes32 chainlogKey;
 }
 
@@ -153,9 +154,9 @@ library FlapperInit {
     ) internal {
         // Sanity checks
         SplitterLike splitter_ = SplitterLike(splitter);
-        require(splitter_.vat()     == address(dss.vat),     "Splitter vat mismatch");
-        require(splitter_.daiJoin() == address(dss.daiJoin), "Splitter daiJoin mismatch");
-        require(splitter_.farm()    == cfg.farm,             "Splitter farm mismatch");
+        require(splitter_.vat()     == address(dss.vat), "Splitter vat mismatch");
+        require(splitter_.daiJoin() == cfg.daiJoin,      "Splitter daiJoin mismatch");
+        require(splitter_.farm()    == cfg.farm,         "Splitter farm mismatch");
 
         require(cfg.hop >= 5 minutes, "Splitter hop too low");
         require(cfg.burn <= WAD,      "Splitter burn too high");
