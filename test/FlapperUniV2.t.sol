@@ -150,6 +150,7 @@ contract FlapperUniV2Test is DssTest {
             hop:             30 minutes,
             burn:            WAD,
             rewardsDuration: 30 minutes,
+            daiJoin:         DAI_JOIN,
             farm:            farm,
             chainlogKey:     "MCD_FLAP_SPLIT"
         });

@@ -96,6 +96,7 @@ contract SplitterMomTest is DssTest {
             hop:             5 minutes,
             burn:            WAD,
             rewardsDuration: 5 minutes,
+            daiJoin:         DAI_JOIN,
             farm:            farm,
             chainlogKey:     "MCD_FLAP_SPLIT"
         });

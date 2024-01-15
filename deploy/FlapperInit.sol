@@ -142,9 +142,9 @@ library FlapperInit {
         SplitterMomLike mom      = SplitterMomLike(splitterInstance.mom);
 
         // Sanity checks
-        require(splitter_.vat()     == address(dss.vat), "Splitter vat mismatch");
-        require(splitter_.daiJoin() == cfg.daiJoin,      "Splitter daiJoin mismatch");
-        require(splitter_.farm()    == cfg.farm,         "Splitter farm mismatch");
+        require(splitter.vat()     == address(dss.vat), "Splitter vat mismatch");
+        require(splitter.daiJoin() == cfg.daiJoin,      "Splitter daiJoin mismatch");
+        require(splitter.farm()    == cfg.farm,         "Splitter farm mismatch");
 
         require(cfg.hump > 0,         "hump too low");
         require(cfg.hop >= 5 minutes, "hop too low");

@@ -151,6 +151,7 @@ contract SplitterTest is DssTest {
             want:            WAD * 97 / 100,
             pip:             address(medianizer),
             pair:            UNIV2_DAI_MKR_PAIR,
+            daiJoin:         DAI_JOIN,
             splitter:        address(splitter),
             prevChainlogKey: bytes32(0),
             chainlogKey:     "MCD_FLAP_BURN"
