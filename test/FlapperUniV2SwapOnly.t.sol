@@ -20,7 +20,7 @@ import "dss-test/DssTest.sol";
 
 import { DssInstance, MCD } from "dss-test/MCD.sol";
 import { FlapperDeploy } from "deploy/FlapperDeploy.sol";
-import { SplitterConfig, FlapperUniV2Config, FlapperInit } from "deploy/FlapperInit.sol";
+import { FlapperUniV2Config, FlapperInit } from "deploy/FlapperInit.sol";
 import { FlapperUniV2SwapOnly } from "src/FlapperUniV2SwapOnly.sol";
 import { SplitterMock } from "test/mocks/SplitterMock.sol";
 import "./helpers/UniswapV2Library.sol";
