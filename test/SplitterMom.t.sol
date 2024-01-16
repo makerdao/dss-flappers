@@ -91,13 +91,15 @@ contract SplitterMomTest is DssTest {
 
         // use random values
         SplitterConfig memory splitterCfg = SplitterConfig({
-            hump:            1,
-            bump:            0,
-            hop:             5 minutes,
-            burn:            WAD,
-            daiJoin:         DAI_JOIN,
-            farm:            farm,
-            chainlogKey:     "MCD_FLAP_SPLIT"
+            hump:                1,
+            bump:                0,
+            hop:                 5 minutes,
+            burn:                WAD,
+            daiJoin:             DAI_JOIN,
+            farm:                farm,
+            splitterChainlogKey: "MCD_FLAP_SPLIT",
+            prevMomChainlogKey:  "FLAPPER_MOM",
+            momChainlogKey:      "SPLITTER_MOM"
         });
         FlapperUniV2Config memory flapperCfg = FlapperUniV2Config({
             want:            1e18,
@@ -114,6 +116,10 @@ contract SplitterMomTest is DssTest {
         FlapperInit.initSplitter(dss, splitterInstance, splitterCfg);
         FlapperInit.initFlapperUniV2(dss, flapper, flapperCfg);
         vm.stopPrank();
+
+        vm.expectRevert("dss-chain-log/invalid-key");
+        dss.chainlog.getAddress("FLAPPER_MOM");
+        assertEq(dss.chainlog.getAddress("SPLITTER_MOM"), splitterInstance.mom);
 
         assertLt(splitter.hop(), type(uint256).max);
     }

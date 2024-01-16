@@ -159,7 +159,7 @@ contract FlapperUniV2 {
         amtOut = _amtInFee * reserveOut / (reserveIn * 1000 + _amtInFee);
     }
 
-    function exec(uint256 lot) external auth returns (uint256) {
+    function exec(uint256 lot) external auth {
         require(live == 1, "FlapperUniV2/not-live");
 
         // Check Amounts
@@ -190,7 +190,6 @@ contract FlapperUniV2 {
         //
 
         emit Exec(lot, _sell, _buy, _liquidity);
-        return 0;
     }
 
     function cage() external auth {

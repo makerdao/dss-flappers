@@ -135,7 +135,7 @@ contract FlapperUniV2SwapOnly {
         amtOut = _amtInFee * reserveOut / (reserveIn * 1000 + _amtInFee);
     }
 
-    function exec(uint256 lot) external auth returns (uint256) {
+    function exec(uint256 lot) external auth {
         require(live == 1, "FlapperUniV2SwapOnly/not-live");
 
         // Check Amount to buy
@@ -155,7 +155,6 @@ contract FlapperUniV2SwapOnly {
         //
 
         emit Exec(lot, _buy);
-        return 0;
     }
 
     function cage() external auth {

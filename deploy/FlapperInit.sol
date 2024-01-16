@@ -84,7 +84,9 @@ struct SplitterConfig {
     uint256 burn;
     address farm;
     address daiJoin;
-    bytes32 chainlogKey;
+    bytes32 splitterChainlogKey;
+    bytes32 prevMomChainlogKey;
+    bytes32 momChainlogKey;
 }
 
 library FlapperInit {
@@ -92,35 +94,35 @@ library FlapperInit {
 
     function initFlapperUniV2(
         DssInstance        memory dss,
-        address                   flapper,
+        address                   flapper_,
         FlapperUniV2Config memory cfg
     ) internal {
-        FlapperUniV2Like flapper_ = FlapperUniV2Like(flapper);
+        FlapperUniV2Like flapper = FlapperUniV2Like(flapper_);
 
         // Sanity checks
-        require(flapper_.vat()      == address(dss.vat),                           "Flapper vat mismatch");
-        require(flapper_.daiJoin()  == cfg.daiJoin,                                "Flapper daiJoin mismatch");
-        require(flapper_.spotter()  == address(dss.spotter),                       "Flapper spotter mismatch");
-        require(flapper_.pair()     == cfg.pair,                                   "Flapper pair mismatch");
-        require(flapper_.receiver() == dss.chainlog.getAddress("MCD_PAUSE_PROXY"), "Flapper receiver mismatch");
+        require(flapper.vat()      == address(dss.vat),                           "Flapper vat mismatch");
+        require(flapper.daiJoin()  == cfg.daiJoin,                                "Flapper daiJoin mismatch");
+        require(flapper.spotter()  == address(dss.spotter),                       "Flapper spotter mismatch");
+        require(flapper.pair()     == cfg.pair,                                   "Flapper pair mismatch");
+        require(flapper.receiver() == dss.chainlog.getAddress("MCD_PAUSE_PROXY"), "Flapper receiver mismatch");
 
-        PairLike pair = PairLike(flapper_.pair());
+        PairLike pair = PairLike(flapper.pair());
         address  dai  = DaiJoinLike(cfg.daiJoin).dai();
         (address pairDai, address pairGem) = pair.token0() == dai ? (pair.token0(), pair.token1())
                                                                   : (pair.token1(), pair.token0());
-        require(pairDai == dai,            "Dai mismatch");
-        require(pairGem == flapper_.gem(), "Gem mismatch");
+        require(pairDai == dai,           "Dai mismatch");
+        require(pairGem == flapper.gem(), "Gem mismatch");
 
         require(cfg.want >= WAD * 90 / 100, "want too low");
 
-        flapper_.file("want", cfg.want);
-        flapper_.file("pip",  cfg.pip);
-        flapper_.rely(cfg.splitter);
+        flapper.file("want", cfg.want);
+        flapper.file("pip",  cfg.pip);
+        flapper.rely(cfg.splitter);
 
-        SplitterLike(cfg.splitter).file("flapper", flapper);
+        SplitterLike(cfg.splitter).file("flapper", flapper_);
 
         if (cfg.prevChainlogKey != bytes32(0)) dss.chainlog.removeAddress(cfg.prevChainlogKey);
-        dss.chainlog.setAddress(cfg.chainlogKey, flapper);
+        dss.chainlog.setAddress(cfg.chainlogKey, flapper_);
     }
 
     function initDirectOracle(address flapper) internal {
@@ -164,8 +166,8 @@ library FlapperInit {
 
         mom.setAuthority(dss.chainlog.getAddress("MCD_ADM"));
 
-        dss.chainlog.setAddress(cfg.chainlogKey, splitterInstance.splitter);
-        dss.chainlog.removeAddress("FLAPPER_MOM");
-        dss.chainlog.setAddress("SPLITTER_MOM", address(mom));
+        dss.chainlog.setAddress(cfg.splitterChainlogKey, splitterInstance.splitter);
+        if (cfg.prevMomChainlogKey != bytes32(0)) dss.chainlog.removeAddress(cfg.prevMomChainlogKey);
+        dss.chainlog.setAddress(cfg.momChainlogKey, address(mom));
     }
 }

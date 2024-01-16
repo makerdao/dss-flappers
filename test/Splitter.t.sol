@@ -138,13 +138,15 @@ contract SplitterTest is DssTest {
         // Note - this part emulates the spell initialization
         vm.startPrank(PAUSE_PROXY);
         SplitterConfig memory splitterCfg = SplitterConfig({
-            hump:            50_000_000 * RAD,
-            bump:            5707 * RAD,
-            hop:             30 minutes,
-            burn:            70 * WAD / 100,
-            farm:            address(farm),
-            daiJoin:         DAI_JOIN,
-            chainlogKey:     "MCD_FLAP_SPLIT"
+            hump:                50_000_000 * RAD,
+            bump:                5707 * RAD,
+            hop:                 30 minutes,
+            burn:                70 * WAD / 100,
+            farm:                address(farm),
+            daiJoin:             DAI_JOIN,
+            splitterChainlogKey: "MCD_FLAP_SPLIT",
+            prevMomChainlogKey:  "FLAPPER_MOM",
+            momChainlogKey:      "SPLITTER_MOM"
         });
         FlapperUniV2Config memory flapperCfg = FlapperUniV2Config({
             want:            WAD * 97 / 100,
@@ -163,10 +165,6 @@ contract SplitterTest is DssTest {
         vm.stopPrank();
 
         assertEq(dss.chainlog.getAddress("MCD_FLAP_SPLIT"), splitterInstance.splitter);
-        assertEq(dss.chainlog.getAddress("MCD_FLAP_BURN"), address(flapper));
-        vm.expectRevert("dss-chain-log/invalid-key");
-        dss.chainlog.getAddress("FLAPPER_MOM");
-        assertEq(dss.chainlog.getAddress("SPLITTER_MOM"), splitterInstance.mom);
 
         // Add initial liquidity if needed
         (uint256 reserveDai, ) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, MKR);

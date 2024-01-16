@@ -28,7 +28,7 @@ interface DaiJoinLike {
 }
 
 interface FlapLike {
-    function exec(uint256) external returns (uint256);
+    function exec(uint256) external;
     function cage() external;
 }
 
