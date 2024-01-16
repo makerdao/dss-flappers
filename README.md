@@ -13,7 +13,7 @@ Configurable Parameters:
 
 ### FlapperUniV2
 
-Exposes a `kick` operation to be triggered periodically by the `Splitter` (at a cadence determined by `Splitter.hop()`). Its logic withdraws `DAI` from the `Splitter` and buys `gem` tokens on Uniswap v2. The acquired tokens, along with a proportional amount of `DAI` (saved from the initial withdraw) are deposited back into the liquidity pool. Finally, the minted LP tokens are sent to a predefined `receiver` address.
+Exposes an `exec` operation to be triggered periodically by the `Splitter` (at a cadence determined by `Splitter.hop()`). Its logic withdraws `DAI` from the `Splitter` and buys `gem` tokens on Uniswap v2. The acquired tokens, along with a proportional amount of `DAI` (saved from the initial withdraw) are deposited back into the liquidity pool. Finally, the minted LP tokens are sent to a predefined `receiver` address.
 
 Configurable Parameters:
 * `pip` - A reference price oracle, used for bounding the exchange rate of the swap.
@@ -25,10 +25,9 @@ Configurable Parameters:
 
 ### FlapperUniV2SwapOnly
 
-Exposes a `kick` operation to be triggered periodically by the `Splitter` (at a cadence determined by `Splitter.hop()`). Its logic withdraws `DAI` from the `Splitter` and buys `gem` tokens on Uniswap v2. The acquired tokens are sent to a predefined `receiver` address.
+Exposes an `exec` operation to be triggered periodically by the `Splitter` (at a cadence determined by `Splitter.hop()`). Its logic withdraws `DAI` from the `Splitter` and buys `gem` tokens on Uniswap v2. The acquired tokens are sent to a predefined `receiver` address.
 
 Configurable Parameters:
-* `hop` - Minimum seconds interval between kicks.
 * `pip` - A reference price oracle, used for bounding the exchange rate of the swap.
 * `want` - Relative multiplier of the reference price to insist on in the swap. For example, a value of 0.98 * `WAD` allows for a 2% worse price than the reference.
 

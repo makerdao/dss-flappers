@@ -9,8 +9,8 @@ interface VatLike {
 }
 
 interface FlapLike {
-    function kick(uint256, uint256) external returns (uint256);
-    function cage(uint256) external;
+    function exec(uint256) external returns (uint256);
+    function cage() external;
 }
 
 contract SplitterMock {
@@ -34,11 +34,11 @@ contract SplitterMock {
 
     function kick(uint256 tot, uint256) external returns (uint256) {
         vat.move(msg.sender, address(this), tot);
-        flapper.kick(tot, 0);
+        flapper.exec(tot);
         return 0;
     }
 
     function cage(uint256) external {
-        FlapLike(flapper).cage(0);
+        FlapLike(flapper).cage();
     }
 }

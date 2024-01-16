@@ -28,8 +28,8 @@ interface DaiJoinLike {
 }
 
 interface FlapLike {
-    function kick(uint256, uint256) external returns (uint256);
-    function cage(uint256) external;
+    function exec(uint256) external returns (uint256);
+    function cage() external;
 }
 
 interface FarmLike {
@@ -105,7 +105,7 @@ contract Splitter {
 
         uint256 lot = tot * burn / WAD;
         if (lot > 0) {
-            flapper.kick(lot, 0);
+            flapper.exec(lot);
         }
 
         uint256 pay = (tot - lot) / RAY;
@@ -119,6 +119,6 @@ contract Splitter {
     }
 
     function cage(uint256) external auth {
-        FlapLike(flapper).cage(0);
+        FlapLike(flapper).cage();
     }
 }

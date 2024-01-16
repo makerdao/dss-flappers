@@ -74,8 +74,8 @@ contract FlapperUniV2 {
     event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
     event File(bytes32 indexed what, address data);
-    event Kick(uint256 lot, uint256 sell, uint256 buy, uint256 liquidity);
-    event Cage(uint256 rad);
+    event Exec(uint256 lot, uint256 sell, uint256 buy, uint256 liquidity);
+    event Cage();
 
     constructor(
         address _daiJoin,
@@ -159,7 +159,7 @@ contract FlapperUniV2 {
         amtOut = _amtInFee * reserveOut / (reserveIn * 1000 + _amtInFee);
     }
 
-    function kick(uint256 lot, uint256) external auth returns (uint256) {
+    function exec(uint256 lot) external auth returns (uint256) {
         require(live == 1, "FlapperUniV2/not-live");
 
         // Check Amounts
@@ -189,12 +189,12 @@ contract FlapperUniV2 {
         uint256 _liquidity = pair.mint(receiver);
         //
 
-        emit Kick(lot, _sell, _buy, _liquidity);
+        emit Exec(lot, _sell, _buy, _liquidity);
         return 0;
     }
 
-    function cage(uint256) external auth {
+    function cage() external auth {
         live = 0;
-        emit Cage(0);
+        emit Cage();
     }
 }

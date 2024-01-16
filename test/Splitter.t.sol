@@ -92,7 +92,7 @@ contract SplitterTest is DssTest {
     address constant UNIV2_DAI_MKR_PAIR  = 0x517F9dD285e75b599234F7221227339478d0FcC8;
 
     event Kick(uint256 tot, uint256 lot, uint256 pay);
-    event Cage(uint256 rad);
+    event Cage();
 
     function setUp() public {
         vm.createSelectFork(vm.envString("ETH_RPC_URL"));
@@ -447,7 +447,7 @@ contract SplitterTest is DssTest {
         assertEq(flapper.live(), 1);
 
         vm.expectEmit(false, false, false, true, address(flapper));
-        emit Cage(0);
+        emit Cage();
         vm.prank(PAUSE_PROXY); splitter.cage(0);
 
         assertEq(flapper.live(), 0);
@@ -460,7 +460,7 @@ contract SplitterTest is DssTest {
         assertEq(flapper.live(), 1);
 
         vm.expectEmit(false, false, false, true, address(flapper));
-        emit Cage(0);
+        emit Cage();
         vm.prank(PAUSE_PROXY); end.cage();
 
         assertEq(flapper.live(), 0);

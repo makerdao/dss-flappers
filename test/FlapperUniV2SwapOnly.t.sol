@@ -109,8 +109,8 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
     address constant UNIV2_DAI_MKR_PAIR  = 0x517F9dD285e75b599234F7221227339478d0FcC8;
     address constant UNIV2_LINK_DAI_PAIR = 0x6D4fd456eDecA58Cf53A8b586cd50754547DBDB2;
 
-    event Kick(uint256 lot, uint256 bought);
-    event Cage(uint256 rad);
+    event Exec(uint256 lot, uint256 bought);
+    event Cage();
 
     function setUp() public {
         vm.createSelectFork(vm.envString("ETH_RPC_URL"));
@@ -143,7 +143,7 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         changeFlapper(address(flapper)); // Use MKR flapper by default
 
         // Create additional surplus if needed
-        uint256 bumps = 2 * vow.bump() + vow.bump() * 110 / 100; // two kicks + 2nd vat.move for the first
+        uint256 bumps = 2 * vow.bump(); // two kicks
         if (vat.dai(address(vow)) < vat.sin(address(vow)) + bumps + vow.hump()) {
             stdstore.target(address(vat)).sig("dai(address)").with_key(address(vow)).depth(0).checked_write(
                 vat.sin(address(vow)) + bumps + vow.hump()
@@ -260,14 +260,14 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         return actual * WAD / ref;
     }
 
-    function doKick(address _flapper, address gem, address pair) internal {
+    function doExec(address _flapper, address gem, address pair) internal {
         uint256 initialGem = GemLike(gem).balanceOf(address(PAUSE_PROXY));
         uint256 initialDaiVow = vat.dai(address(vow));
         uint256 initialReserveDai = GemLike(DAI).balanceOf(pair);
         uint256 initialReserveMkr = GemLike(gem).balanceOf(pair);
 
         vm.expectEmit(false, false, false, false); // only check event signature (topic 0)
-        emit Kick(0, 0);
+        emit Exec(0, 0);
         vow.flap();
 
         assertGt(GemLike(gem).balanceOf(address(PAUSE_PROXY)), initialGem);
@@ -298,7 +298,7 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         assert(flapper.wards(address(this)) == 0);
 
         checkModifier(address(flapper), string(abi.encodePacked("FlapperUniV2SwapOnly", "/not-authorized")), [
-            FlapperUniV2SwapOnly.kick.selector,
+            FlapperUniV2SwapOnly.exec.selector,
             FlapperUniV2SwapOnly.cage.selector
         ]);
     }
@@ -311,29 +311,29 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         checkFileAddress(address(flapper), "FlapperUniV2SwapOnly", ["pip"]);
     }
 
-    function testKick() public {
-        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
+    function testExec() public {
+        doExec(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
     }
 
-    function testKickDaiSecond() public {
+    function testExecDaiSecond() public {
         changeFlapper(address(linkFlapper));
-        doKick(address(linkFlapper), LINK, UNIV2_LINK_DAI_PAIR);
+        doExec(address(linkFlapper), LINK, UNIV2_LINK_DAI_PAIR);
     }
 
-    function testKickWantAllows() public {
+    function testExecWantAllows() public {
         uint256 _marginalWant = marginalWant(MKR, address(medianizer));
         vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
-        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
+        doExec(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
     }
 
-    function testKickWantBlocks() public {
+    function testExecWantBlocks() public {
         uint256 _marginalWant = marginalWant(MKR, address(medianizer));
         vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 101 / 100);
         vm.expectRevert("FlapperUniV2SwapOnly/insufficient-buy-amount");
         vow.flap();
     }
 
-    function testKickDaiSecondWantBlocks() public {
+    function testExecDaiSecondWantBlocks() public {
         changeFlapper(address(linkFlapper));
         uint256 _marginalWant = marginalWant(LINK, address(linkMedianizer));
         vm.prank(PAUSE_PROXY); linkFlapper.file("want", _marginalWant * 101 / 100);
@@ -341,37 +341,37 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         vow.flap();
     }
 
-    function testKickNotLive() public {
-        vm.prank(PAUSE_PROXY); flapper.cage(0);
+    function testExecNotLive() public {
+        vm.prank(PAUSE_PROXY); flapper.cage();
         assertEq(flapper.live(), 0);
         vm.expectRevert("FlapperUniV2SwapOnly/not-live");
         vow.flap();
     }
 
-    function testKickDonationDai() public {
+    function testExecDonationDai() public {
         deal(DAI, UNIV2_DAI_MKR_PAIR, GemLike(DAI).balanceOf(UNIV2_DAI_MKR_PAIR) * 1005 / 1000);
         // This will now sync the reserves before the swap
-        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
+        doExec(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
     }
 
-    function testKickDonationGem() public {
+    function testExecDonationGem() public {
         deal(MKR, UNIV2_DAI_MKR_PAIR, GemLike(MKR).balanceOf(UNIV2_DAI_MKR_PAIR) * 1005 / 1000);
         // This will now sync the reserves before the swap
-        doKick(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
+        doExec(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
     }
 
     function testCage() public {
         assertEq(flapper.live(), 1);
         vm.expectEmit(false, false, false, true);
-        emit Cage(0);
-        vm.prank(PAUSE_PROXY); flapper.cage(0);
+        emit Cage();
+        vm.prank(PAUSE_PROXY); flapper.cage();
         assertEq(flapper.live(), 0);
     }
 
     function testCageThroughEnd() public {
         assertEq(flapper.live(), 1);
         vm.expectEmit(false, false, false, true, address(flapper));
-        emit Cage(0);
+        emit Cage();
         vm.prank(PAUSE_PROXY); end.cage();
         assertEq(flapper.live(), 0);
     }
