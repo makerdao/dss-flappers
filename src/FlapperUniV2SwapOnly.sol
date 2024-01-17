@@ -33,6 +33,7 @@ interface SpotterLike {
 
 interface GemLike {
     function decimals() external view returns (uint8);
+    function transfer(address, uint256) external;
 }
 
 interface PipLike {
@@ -141,15 +142,12 @@ contract FlapperUniV2SwapOnly {
         // Check Amount to buy
         (uint256 _reserveDai, uint256 _reserveGem) = _getReserves();
 
-        uint256 _wlot = lot / RAY;
-
-        uint256 _buy = _getAmountOut(_wlot, _reserveDai, _reserveGem);
-        require(_buy >= _wlot * want / (uint256(pip.read()) * RAY / spotter.par()), "FlapperUniV2SwapOnly/insufficient-buy-amount");
+        uint256 _buy = _getAmountOut(lot, _reserveDai, _reserveGem);
+        require(_buy >= lot * want / (uint256(pip.read()) * RAY / spotter.par()), "FlapperUniV2SwapOnly/insufficient-buy-amount");
         //
 
-        // Get Dai and swap
-        vat.move(msg.sender, address(this), _wlot * RAY);
-        daiJoin.exit(address(pair), _wlot);
+        // Swap
+        GemLike(dai).transfer(address(pair), lot);
         (uint256 _amt0Out, uint256 _amt1Out) = daiFirst ? (uint256(0), _buy) : (_buy, uint256(0));
         pair.swap(_amt0Out, _amt1Out, receiver, new bytes(0));
         //

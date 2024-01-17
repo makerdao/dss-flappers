@@ -74,8 +74,8 @@ contract Splitter {
         _;
     }
 
-    uint256 internal constant WAD = 10 ** 18;
     uint256 internal constant RAY = 10 ** 27;
+    uint256 internal constant RAD = 10 ** 45;
 
     function rely(address usr) external auth { wards[usr] = 1; emit Rely(usr); }
     function deny(address usr) external auth { wards[usr] = 0; emit Deny(usr); }
@@ -88,11 +88,7 @@ contract Splitter {
     }
 
     function file(bytes32 what, address data) external auth {
-        if (what == "flapper") {
-            vat.nope(address(flapper));
-            flapper = FlapLike(data);
-            vat.hope(data);
-        }
+        if (what == "flapper") flapper = FlapLike(data);
         else revert("Splitter/file-unrecognized-param");
         emit File(what, data);
     }
@@ -103,12 +99,13 @@ contract Splitter {
 
         vat.move(msg.sender, address(this), tot);
 
-        uint256 lot = tot * burn / WAD;
+        uint256 lot = tot * burn / RAD;
         if (lot > 0) {
+            DaiJoinLike(daiJoin).exit(address(flapper), lot);
             flapper.exec(lot);
         }
 
-        uint256 pay = (tot - lot) / RAY;
+        uint256 pay = (tot / RAY - lot);
         if (pay > 0) {
             DaiJoinLike(daiJoin).exit(address(farm), pay);
             farm.notifyRewardAmount(pay);

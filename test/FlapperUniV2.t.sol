@@ -129,7 +129,7 @@ contract FlapperUniV2Test is DssTest {
         end           = EndLike(ChainlogLike(LOG).getAddress("MCD_END"));
         spotter       = SpotterLike(ChainlogLike(LOG).getAddress("MCD_SPOT"));
         
-        splitter = new SplitterMock(address(vat));
+        splitter = new SplitterMock(DAI_JOIN);
         vm.startPrank(PAUSE_PROXY);
         vow.file("hump", 50_000_000 * RAD);
         vow.file("bump", 5707 * RAD);

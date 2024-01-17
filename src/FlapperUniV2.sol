@@ -149,8 +149,8 @@ contract FlapperUniV2 {
     // (2)   (lot - sell) / bought  = (reserveDai + sell) / (reserveGem - bought)
     //
     // The solution for the these equations for variables `sell` and `bought` is used below.
-    function _getDaiToSell(uint256 wlot, uint256 reserveDai) internal pure returns (uint256 sell) {
-        sell = (Babylonian.sqrt(reserveDai * (wlot * 3988000 + reserveDai * 3988009)) - reserveDai * 1997) / 1994;
+    function _getDaiToSell(uint256 lot, uint256 reserveDai) internal pure returns (uint256 sell) {
+        sell = (Babylonian.sqrt(reserveDai * (lot * 3988000 + reserveDai * 3988009)) - reserveDai * 1997) / 1994;
     }
 
     // Based on: https://github.com/Uniswap/v2-periphery/blob/0335e8f7e1bd1e8d8329fd300aea2ef2f36dd19f/contracts/libraries/UniswapV2Library.sol#L43
@@ -165,16 +165,10 @@ contract FlapperUniV2 {
         // Check Amounts
         (uint256 _reserveDai, uint256 _reserveGem) = _getReserves();
 
-        uint256 _wlot = lot / RAY;
-        uint256 _sell = _getDaiToSell(_wlot, _reserveDai);
+        uint256 _sell = _getDaiToSell(lot, _reserveDai);
 
         uint256 _buy = _getAmountOut(_sell, _reserveDai, _reserveGem);
         require(_buy >= _sell * want / (uint256(pip.read()) * RAY / spotter.par()), "FlapperUniV2/insufficient-buy-amount");
-        //
-
-        // Get Dai
-        vat.move(msg.sender, address(this), _wlot * RAY);
-        daiJoin.exit(address(this), _wlot);
         //
 
         // Swap
@@ -184,7 +178,7 @@ contract FlapperUniV2 {
         //
 
         // Deposit
-        GemLike(dai).transfer(address(pair), _wlot - _sell);
+        GemLike(dai).transfer(address(pair), lot - _sell);
         GemLike(gem).transfer(address(pair), _buy);
         uint256 _liquidity = pair.mint(receiver);
         //

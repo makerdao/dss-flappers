@@ -259,7 +259,7 @@ contract SplitterTest is DssTest {
         uint256 prevLastUpdateTime = farm.lastUpdateTime();
 
         vm.expectEmit(false, false, false, true);
-        emit Kick(vow.bump(), vow.bump() * splitter.burn() / WAD, farmReward);
+        emit Kick(vow.bump(), vow.bump() * splitter.burn() / RAD, farmReward);
         vow.flap();
 
         assertEq(vat.dai(address(vow)), initialVowVatDai - vow.bump());
@@ -317,20 +317,6 @@ contract SplitterTest is DssTest {
 
     function testFileAddress() public {
         checkFileAddress(address(splitter), "Splitter", ["flapper"]);
-    }
-
-    function testVatCanAfterFile() public {
-        assertEq(vat.can(address(splitter), address(0xf1)), 0);
-
-        vm.prank(PAUSE_PROXY); splitter.file("flapper", address(0xf1));
-
-        assertEq(vat.can(address(splitter), address(0xf1)), 1);
-        assertEq(vat.can(address(splitter), address(0xf2)), 0);
-
-        vm.prank(PAUSE_PROXY); splitter.file("flapper", address(0xf2));
-
-        assertEq(vat.can(address(splitter), address(0xf1)), 0);
-        assertEq(vat.can(address(splitter), address(0xf2)), 1);
     }
 
     function testKick() public {
