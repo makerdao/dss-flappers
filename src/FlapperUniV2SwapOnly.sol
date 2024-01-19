@@ -18,13 +18,11 @@ pragma solidity ^0.8.16;
 
 interface VatLike {
     function hope(address) external;
-    function move(address, address, uint256) external;
 }
 
 interface DaiJoinLike {
     function vat() external view returns (address);
     function dai() external view returns (address);
-    function exit(address, uint256) external;
 }
 
 interface SpotterLike {

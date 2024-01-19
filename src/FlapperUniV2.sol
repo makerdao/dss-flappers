@@ -20,13 +20,11 @@ import { Babylonian } from "src/Babylonian.sol";
 
 interface VatLike {
     function hope(address) external;
-    function move(address, address, uint256) external;
 }
 
 interface DaiJoinLike {
     function vat() external view returns (address);
     function dai() external view returns (address);
-    function exit(address, uint256) external;
 }
 
 interface SpotterLike {
@@ -150,7 +148,7 @@ contract FlapperUniV2 {
     //
     // The solution for the these equations for variables `sell` and `bought` is used below.
     function _getDaiToSell(uint256 lot, uint256 reserveDai) internal pure returns (uint256 sell) {
-        sell = (Babylonian.sqrt(reserveDai * (lot * 3988000 + reserveDai * 3988009)) - reserveDai * 1997) / 1994;
+        sell = (Babylonian.sqrt(reserveDai * (lot * 3_988_000 + reserveDai * 3_988_009)) - reserveDai * 1997) / 1994;
     }
 
     // Based on: https://github.com/Uniswap/v2-periphery/blob/0335e8f7e1bd1e8d8329fd300aea2ef2f36dd19f/contracts/libraries/UniswapV2Library.sol#L43

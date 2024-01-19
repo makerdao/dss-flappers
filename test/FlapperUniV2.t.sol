@@ -262,7 +262,7 @@ contract FlapperUniV2Test is DssTest {
     function marginalWant(address gem, address pip) internal view returns (uint256) {
         uint256 wbump = vow.bump() / RAY;
         (uint256 reserveDai, ) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, gem);
-        uint256 sell = (Babylonian.sqrt(reserveDai * (wbump * 3988000 + reserveDai * 3988009)) - reserveDai * 1997) / 1994;
+        uint256 sell = (Babylonian.sqrt(reserveDai * (wbump * 3_988_000 + reserveDai * 3_988_009)) - reserveDai * 1997) / 1994;
 
         uint256 actual = uniV2GemForDai(sell, gem);
         uint256 ref    = refAmountOut(sell, pip);
