@@ -33,6 +33,7 @@ interface FlapperUniV2Like {
 }
 
 interface SplitterMomLike {
+    function splitter() external view returns (address);
     function setAuthority(address) external;
 }
 
@@ -143,9 +144,10 @@ library FlapperInit {
         SplitterMomLike mom      = SplitterMomLike(splitterInstance.mom);
 
         // Sanity checks
-        require(splitter.vat()     == address(dss.vat), "Splitter vat mismatch");
-        require(splitter.daiJoin() == cfg.daiJoin,      "Splitter daiJoin mismatch");
-        require(splitter.farm()    == cfg.farm,         "Splitter farm mismatch");
+        require(splitter.vat()     == address(dss.vat),          "Splitter vat mismatch");
+        require(splitter.daiJoin() == cfg.daiJoin,               "Splitter daiJoin mismatch");
+        require(splitter.farm()    == cfg.farm,                  "Splitter farm mismatch");
+        require(mom.splitter()     == splitterInstance.splitter, "Mom splitter mismatch");
 
         require(cfg.hump > 0,         "hump too low");
         require(cfg.hop >= 5 minutes, "hop too low");
