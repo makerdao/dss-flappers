@@ -5,7 +5,6 @@ pragma solidity ^0.8.16;
 interface VatLike {
     function move(address, address, uint256) external;
     function hope(address) external;
-    function nope(address) external;
 }
 
 interface DaiJoinLike {
