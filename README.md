@@ -1,6 +1,6 @@
 # Dss Flappers
 
-Implementations of MakerDao surplus auctions, triggered on `vow.flap`.
+Implementations of MakerDAO surplus auctions, triggered on `vow.flap`.
 
 ### Splitter
 
