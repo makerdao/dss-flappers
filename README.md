@@ -21,7 +21,7 @@ Configurable Parameters:
 
 #### Note:
 
-* Although the Flapper interface is conformant with the Emergency Shutdown procedure and will stop operating when it is triggered, LP tokens already sent to the receiver do not have special redeeming handling. Therefore, in case the Pause Proxy is the receiver and governance does not control it, the LP tokens can be lost or seized by a governance attack.
+* Although the Flapper interface is conformant with the Emergency Shutdown procedure and will stop operating when it is triggered, LP tokens already sent to the `receiver` do not have special redeeming handling. Therefore, in case the Pause Proxy is the `receiver` and governance does not control it, the LP tokens can be lost or seized by a governance attack.
 
 ### FlapperUniV2SwapOnly
 
