@@ -388,7 +388,6 @@ contract FlapperUniV2Test is DssTest {
     // A shortened version of the sell and deposit flapper that sells `lot`.
     // Based on: https://github.com/makerdao/dss-flappers/blob/da7b6b70e7cfe3631f8af695bbe0c79db90e2a20/src/FlapperUniV2.sol
     function sellLotAndDeposit(PairLike pair, address gem, bool daiFirst, address receiver, uint256 lot) internal {
-
         // Get Amounts
         (uint256 _reserveDai, uint256 _reserveGem) = UniswapV2Library.getReserves(UNIV2_FACTORY, DAI, gem);
         uint256 _wlot = lot / RAY;
