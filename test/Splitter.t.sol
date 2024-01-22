@@ -312,7 +312,7 @@ contract SplitterTest is DssTest {
     }
 
     function testFileUint() public {
-        checkFileUint(address(splitter), "Splitter", ["burn"]);
+        checkFileUint(address(splitter), "Splitter", ["burn", "hop"]);
     }
 
     function testFileAddress() public {
