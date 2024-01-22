@@ -31,9 +31,9 @@ Configurable Parameters:
 * `pip` - A reference price oracle, used for bounding the exchange rate of the swap.
 * `want` - Relative multiplier of the reference price to insist on in the swap. For example, a value of 0.98 * `WAD` allows for a 2% worse price than the reference.
 
-### FlapperMom
+### SplitterMom
 
-This contract allows bypassing the governance delay when disabling the Flapper in an emergency.
+This contract allows bypassing the governance delay when disabling the Splitter in an emergency.
 
 ### OracleWrapper
 
@@ -41,4 +41,4 @@ Allows for scaling down an oracle price by a certain value. This can be useful w
 
 ### General Note:
 
-* Availability and accounting of the withdrawn `DAI` is the responsibility of the `vow`. At the time of a `kick`, the `vow` is expected to hold at least the swapped amount (`vow.bump`) over the configured flapping threshold (`vow.hump`).
+* Availability and accounting of the withdrawn `DAI` is the responsibility of the `vow`. At the time of a `kick`, the `vow` is expected to hold at least the drawn amount (`vow.bump`) over the configured flapping threshold (`vow.hump`).
