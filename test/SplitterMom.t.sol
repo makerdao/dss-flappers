@@ -16,15 +16,16 @@
 
 pragma solidity ^0.8.16;
 
-import "forge-std/Test.sol";
+import "dss-test/DssTest.sol";
 
 import { DssInstance, MCD } from "dss-test/MCD.sol";
-import { FlapperInstance } from "deploy/FlapperInstance.sol";
+import { SplitterInstance } from "deploy/SplitterInstance.sol";
 import { FlapperDeploy } from "deploy/FlapperDeploy.sol";
-import { FlapperUniV2Config, FlapperInit } from "deploy/FlapperInit.sol";
-
-import { FlapperMom } from "src/FlapperMom.sol";
-import { FlapperUniV2 } from "src/FlapperUniV2.sol";
+import { SplitterConfig, FlapperUniV2Config, FlapperInit } from "deploy/FlapperInit.sol";
+import { SplitterMom } from "src/SplitterMom.sol";
+import { Splitter } from "src/Splitter.sol";
+import { StakingRewardsMock } from "test/mocks/StakingRewardsMock.sol";
+import { GemMock } from "test/mocks/GemMock.sol";
 
 interface ChainlogLike {
     function getAddress(bytes32) external view returns (address);
@@ -34,14 +35,16 @@ interface ChiefLike {
     function hat() external view returns (address);
 }
 
-contract FlapperMomTest is Test {
+contract SplitterMomTest is DssTest {
     using stdStorage for StdStorage;
 
-    FlapperUniV2 flapper;
-    FlapperMom   mom;
+    Splitter    splitter;
+    SplitterMom mom;
 
     address DAI_JOIN;
     address SPOT;
+    address VOW;
+    address DAI;
     address MKR;
     address PAUSE_PROXY;
     ChiefLike chief;
@@ -59,11 +62,23 @@ contract FlapperMomTest is Test {
 
         DAI_JOIN          = ChainlogLike(LOG).getAddress("MCD_JOIN_DAI");
         SPOT              = ChainlogLike(LOG).getAddress("MCD_SPOT");
+        DAI               = ChainlogLike(LOG).getAddress("MCD_DAI");
+        VOW               = ChainlogLike(LOG).getAddress("MCD_VOW");
         MKR               = ChainlogLike(LOG).getAddress("MCD_GOV");
         PAUSE_PROXY       = ChainlogLike(LOG).getAddress("MCD_PAUSE_PROXY");
         chief             = ChiefLike(ChainlogLike(LOG).getAddress("MCD_ADM"));
 
-        FlapperInstance memory flapperInstance = FlapperDeploy.deployFlapperUniV2({
+        address farm = address(new StakingRewardsMock(PAUSE_PROXY, address(0), DAI, address(new GemMock(1_000_000 ether))));
+        SplitterInstance memory splitterInstance = FlapperDeploy.deploySplitter({
+            deployer: address(this),
+            owner:    PAUSE_PROXY,
+            daiJoin:  DAI_JOIN,
+            farm:     farm
+        });
+        splitter = Splitter(splitterInstance.splitter);
+        mom = SplitterMom(splitterInstance.mom);
+
+        address flapper = FlapperDeploy.deployFlapperUniV2({
             deployer: address(this),
             owner:    PAUSE_PROXY,
             daiJoin:  DAI_JOIN,
@@ -73,32 +88,47 @@ contract FlapperMomTest is Test {
             receiver: PAUSE_PROXY,
             swapOnly: false
         });
-        flapper = FlapperUniV2(flapperInstance.flapper);
-        mom = FlapperMom(flapperInstance.mom);
 
         // use random values
-        FlapperUniV2Config memory cfg = FlapperUniV2Config({
-            hop:     5 minutes,
-            want:    1e18,
-            pip:     address(0),
-            hump:    1,
-            bump:    0,
-            daiJoin: DAI_JOIN
+        SplitterConfig memory splitterCfg = SplitterConfig({
+            hump:                1,
+            bump:                0,
+            hop:                 5 minutes,
+            burn:                WAD,
+            daiJoin:             DAI_JOIN,
+            farm:                farm,
+            splitterChainlogKey: "MCD_FLAP_SPLIT",
+            prevMomChainlogKey:  "FLAPPER_MOM",
+            momChainlogKey:      "SPLITTER_MOM"
+        });
+        FlapperUniV2Config memory flapperCfg = FlapperUniV2Config({
+            want:            1e18,
+            pip:             address(0),
+            pair:            UNIV2_DAI_MKR_PAIR,
+            daiJoin:         DAI_JOIN,
+            splitter:        address(splitter),
+            prevChainlogKey: "MCD_FLAP",
+            chainlogKey:     "MCD_FLAP_LP"
         });
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
 
         vm.startPrank(PAUSE_PROXY);
-        FlapperInit.initFlapperUniV2(dss, flapperInstance, cfg);
+        FlapperInit.initSplitter(dss, splitterInstance, splitterCfg);
+        FlapperInit.initFlapperUniV2(dss, flapper, flapperCfg);
         vm.stopPrank();
 
-        assertLt(flapper.hop(), type(uint256).max);
+        vm.expectRevert("dss-chain-log/invalid-key");
+        dss.chainlog.getAddress("FLAPPER_MOM");
+        assertEq(dss.chainlog.getAddress("SPLITTER_MOM"), splitterInstance.mom);
+
+        assertLt(splitter.hop(), type(uint256).max);
     }
 
     function doStop(address sender) internal {
         vm.expectEmit(false, false, false, false);
         emit Stop();
         vm.prank(sender); mom.stop();
-        assertEq(flapper.hop(), type(uint256).max);
+        assertEq(Splitter(address(mom.splitter())).hop(), type(uint256).max);
     }
 
     function testSetOwner() public {
@@ -109,7 +139,7 @@ contract FlapperMomTest is Test {
     }
 
     function testSetOwnerNotAuthed() public {
-        vm.expectRevert("FlapperMom/only-owner");
+        vm.expectRevert("SplitterMom/only-owner");
         vm.prank(address(456)); mom.setOwner(address(123));
     }
 
@@ -121,31 +151,31 @@ contract FlapperMomTest is Test {
     }
 
     function testSetAuthorityNotAuthed() public {
-        vm.expectRevert("FlapperMom/only-owner");
+        vm.expectRevert("SplitterMom/only-owner");
         vm.prank(address(456)); mom.setAuthority(address(123));
     }
 
     function testStopFromOwner() public {
         doStop(PAUSE_PROXY);
-        vm.expectRevert("FlapperUniV2/kicked-too-soon");
-        vm.prank(PAUSE_PROXY); flapper.kick(0, 0);
+        vm.expectRevert("Splitter/kicked-too-soon");
+        vm.prank(PAUSE_PROXY); splitter.kick(0, 0);
     }
 
     function testStopFromHat() public {
         doStop(address(chief.hat()));
-        vm.expectRevert("FlapperUniV2/kicked-too-soon");
-        vm.prank(PAUSE_PROXY); flapper.kick(0, 0);
+        vm.expectRevert("Splitter/kicked-too-soon");
+        vm.prank(PAUSE_PROXY); splitter.kick(0, 0);
     }
 
     function testStopAfterZzzSet() public {
-        stdstore.target(address(flapper)).sig("zzz()").checked_write(314);
+        stdstore.target(address(splitter)).sig("zzz()").checked_write(314);
         doStop(address(chief.hat()));
         vm.expectRevert(bytes(abi.encodeWithSignature("Panic(uint256)", 0x11))); // arithmetic error
-        vm.prank(PAUSE_PROXY); flapper.kick(0, 0);
+        vm.prank(PAUSE_PROXY); splitter.kick(0, 0);
     }
 
     function testStopNonAuthed() public {
-        vm.expectRevert("FlapperMom/not-authorized");
+        vm.expectRevert("SplitterMom/not-authorized");
         vm.prank(address(456)); mom.stop();
     }
 }

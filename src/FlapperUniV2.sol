@@ -16,15 +16,15 @@
 
 pragma solidity ^0.8.16;
 
+import { Babylonian } from "src/Babylonian.sol";
+
 interface VatLike {
     function hope(address) external;
-    function move(address, address, uint256) external;
 }
 
 interface DaiJoinLike {
     function vat() external view returns (address);
     function dai() external view returns (address);
-    function exit(address, uint256) external;
 }
 
 interface SpotterLike {
@@ -55,8 +55,6 @@ contract FlapperUniV2 {
 
     uint256 public live;  // Active Flag
     PipLike public pip;   // Reference price oracle
-    uint256 public hop;   // [Seconds]    Time between kicks
-    uint256 public zzz;   // [Timestamp]  Last kick
     uint256 public want;  // [WAD]        Relative multiplier of the reference price to insist on in the swap.
                           //              For example: 0.98 * WAD allows 2% worse price than the reference.
 
@@ -74,8 +72,8 @@ contract FlapperUniV2 {
     event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
     event File(bytes32 indexed what, address data);
-    event Kick(uint256 lot, uint256 total, uint256 bought, uint256 liquidity);
-    event Cage(uint256 rad);
+    event Exec(uint256 lot, uint256 sell, uint256 buy, uint256 liquidity);
+    event Cage();
 
     constructor(
         address _daiJoin,
@@ -101,9 +99,7 @@ contract FlapperUniV2 {
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
 
-        // Initial values for safety
-        hop  = 1 hours;
-        want = WAD;
+        want = WAD; // Initial value for safety
 
         live = 1;
     }
@@ -121,8 +117,7 @@ contract FlapperUniV2 {
 
     // Warning - low `want` values increase the susceptibility to oracle manipulation attacks
     function file(bytes32 what, uint256 data) external auth {
-        if      (what == "hop")  hop = data;
-        else if (what == "want") want = data;
+        if (what == "want") want = data;
         else revert("FlapperUniV2/file-unrecognized-param");
         emit File(what, data);
     }
@@ -148,12 +143,12 @@ contract FlapperUniV2 {
     // The Uniswap invariant needs to hold through the swap.
     // Additionally, The deposited funds need to be in the same ratio as the reserves after the swap.
     //
-    // (1)   reserveDai * reserveGem = (reserveDai + lot * 997 / 1000) * (reserveGem - bought)
-    // (2)   (total - lot) / bought  = (reserveDai + lot) / (reserveGem - bought)
+    // (1)   reserveDai * reserveGem = (reserveDai + sell * 997 / 1000) * (reserveGem - bought)
+    // (2)   (lot - sell) / bought  = (reserveDai + sell) / (reserveGem - bought)
     //
-    // The solution for the these equations for variable `total` and `bought` is used below.
-    function _getTotalDai(uint256 wlot, uint256 reserveDai) internal pure returns (uint256 total) {
-        total = wlot * (997 * wlot + 1997 * reserveDai) / (1000 * reserveDai);
+    // The solution for the these equations for variables `sell` and `bought` is used below.
+    function _getDaiToSell(uint256 lot, uint256 reserveDai) internal pure returns (uint256 sell) {
+        sell = (Babylonian.sqrt(reserveDai * (lot * 3_988_000 + reserveDai * 3_988_009)) - reserveDai * 1997) / 1994;
     }
 
     // Based on: https://github.com/Uniswap/v2-periphery/blob/0335e8f7e1bd1e8d8329fd300aea2ef2f36dd19f/contracts/libraries/UniswapV2Library.sol#L43
@@ -162,46 +157,35 @@ contract FlapperUniV2 {
         amtOut = _amtInFee * reserveOut / (reserveIn * 1000 + _amtInFee);
     }
 
-    function kick(uint256 lot, uint256) external auth returns (uint256) {
+    function exec(uint256 lot) external auth {
         require(live == 1, "FlapperUniV2/not-live");
-
-        require(block.timestamp >= zzz + hop, "FlapperUniV2/kicked-too-soon");
-        zzz = block.timestamp;
 
         // Check Amounts
         (uint256 _reserveDai, uint256 _reserveGem) = _getReserves();
 
-        uint256 _wlot = lot / RAY;
-        uint256 _total = _getTotalDai(_wlot, _reserveDai);
-        require(_total < _wlot * 220 / 100, "FlapperUniV2/total-insanity");
+        uint256 _sell = _getDaiToSell(lot, _reserveDai);
 
-        uint256 _buy = _getAmountOut(_wlot, _reserveDai, _reserveGem);
-        require(_buy >= _wlot * want / (uint256(pip.read()) * RAY / spotter.par()), "FlapperUniV2/insufficient-buy-amount");
-        //
-
-        // Get Dai
-        vat.move(msg.sender, address(this), _total * RAY);
-        daiJoin.exit(address(this), _total);
+        uint256 _buy = _getAmountOut(_sell, _reserveDai, _reserveGem);
+        require(_buy >= _sell * want / (uint256(pip.read()) * RAY / spotter.par()), "FlapperUniV2/insufficient-buy-amount");
         //
 
         // Swap
-        GemLike(dai).transfer(address(pair), _wlot);
+        GemLike(dai).transfer(address(pair), _sell);
         (uint256 _amt0Out, uint256 _amt1Out) = daiFirst ? (uint256(0), _buy) : (_buy, uint256(0));
         pair.swap(_amt0Out, _amt1Out, address(this), new bytes(0));
         //
 
         // Deposit
-        GemLike(dai).transfer(address(pair), _total - _wlot);
+        GemLike(dai).transfer(address(pair), lot - _sell);
         GemLike(gem).transfer(address(pair), _buy);
         uint256 _liquidity = pair.mint(receiver);
         //
 
-        emit Kick(lot, _total, _buy, _liquidity);
-        return 0;
+        emit Exec(lot, _sell, _buy, _liquidity);
     }
 
-    function cage(uint256) external auth {
+    function cage() external auth {
         live = 0;
-        emit Cage(0);
+        emit Cage();
     }
 }
