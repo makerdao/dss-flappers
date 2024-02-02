@@ -92,7 +92,7 @@ contract SplitterTest is DssTest {
     address constant UNIV2_DAI_MKR_PAIR  = 0x517F9dD285e75b599234F7221227339478d0FcC8;
 
     event Kick(uint256 tot, uint256 lot, uint256 pay);
-    event Cage();
+    event Cage(uint256 rad);
 
     function setUp() public {
         vm.createSelectFork(vm.envString("ETH_RPC_URL"));
@@ -296,6 +296,7 @@ contract SplitterTest is DssTest {
         assertEq(address(s.vat()), address(vat));
         assertEq(address(s.farm()), address(0xfff));
         assertEq(s.wards(address(this)), 1);
+        assertEq(s.live(), 1);
     }
 
     function testAuth() public {
@@ -380,6 +381,13 @@ contract SplitterTest is DssTest {
         vow.flap();
     }
 
+    function testKickNotLive() public {
+        vm.prank(PAUSE_PROXY); splitter.cage(0);
+        assertEq(splitter.live(), 0);
+        vm.expectRevert("Splitter/not-live");
+        vow.flap();
+    }
+
     function checkChangeRewardDuration(uint256 newDuration) private {
         uint256 topup = 5707 * (WAD - 70 * WAD / 100);
         doKick();
@@ -420,36 +428,29 @@ contract SplitterTest is DssTest {
         checkChangeRewardDuration(5 minutes);
     }
 
-    function testCageFlapperNotSet() public {
-        vm.prank(PAUSE_PROXY); splitter.file("flapper", address(0));
-
-        vm.expectRevert(bytes(""));
-        vm.prank(PAUSE_PROXY); splitter.cage(0);
-    }
-
     function testCage() public {
-        assertEq(flapper.live(), 1);
+        assertEq(splitter.live(), 1);
 
-        vm.expectEmit(false, false, false, true, address(flapper));
-        emit Cage();
+        vm.expectEmit(false, false, false, true);
+        emit Cage(0);
         vm.prank(PAUSE_PROXY); splitter.cage(0);
 
-        assertEq(flapper.live(), 0);
+        assertEq(splitter.live(), 0);
         
-        vm.expectRevert("FlapperUniV2SwapOnly/not-live");
+        vm.expectRevert("Splitter/not-live");
         vow.flap();
     }
 
     function testCageThroughEnd() public {
-        assertEq(flapper.live(), 1);
+        assertEq(splitter.live(), 1);
 
-        vm.expectEmit(false, false, false, true, address(flapper));
-        emit Cage();
+        vm.expectEmit(false, false, false, true);
+        emit Cage(0);
         vm.prank(PAUSE_PROXY); end.cage();
 
-        assertEq(flapper.live(), 0);
+        assertEq(splitter.live(), 0);
 
-        vm.expectRevert("FlapperUniV2SwapOnly/not-live");
+        vm.expectRevert("Splitter/not-live");
         vow.flap();
     }
 }

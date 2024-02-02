@@ -48,7 +48,6 @@ interface PairLike {
 contract FlapperUniV2SwapOnly {
     mapping (address => uint256) public wards;
 
-    uint256 public live;  // Active Flag
     PipLike public pip;   // Reference price oracle
     uint256 public want;  // [WAD]        Relative multiplier of the reference price to insist on in the swap.
                           //              For example: 0.98 * WAD allows 2% worse price than the reference.
@@ -68,7 +67,6 @@ contract FlapperUniV2SwapOnly {
     event File(bytes32 indexed what, uint256 data);
     event File(bytes32 indexed what, address data);
     event Exec(uint256 lot, uint256 bought);
-    event Cage();
 
     constructor(
         address _daiJoin,
@@ -95,8 +93,6 @@ contract FlapperUniV2SwapOnly {
         emit Rely(msg.sender);
 
         want = WAD; // Initial value for safety
-
-        live = 1;
     }
 
     modifier auth {
@@ -135,8 +131,6 @@ contract FlapperUniV2SwapOnly {
     }
 
     function exec(uint256 lot) external auth {
-        require(live == 1, "FlapperUniV2SwapOnly/not-live");
-
         // Check Amount to buy
         (uint256 _reserveDai, uint256 _reserveGem) = _getReserves();
 
@@ -151,10 +145,5 @@ contract FlapperUniV2SwapOnly {
         //
 
         emit Exec(lot, _buy);
-    }
-
-    function cage() external auth {
-        live = 0;
-        emit Cage();
     }
 }
