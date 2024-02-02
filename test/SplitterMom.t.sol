@@ -81,8 +81,8 @@ contract SplitterMomTest is DssTest {
         address flapper = FlapperDeploy.deployFlapperUniV2({
             deployer: address(this),
             owner:    PAUSE_PROXY,
-            daiJoin:  DAI_JOIN,
             spotter:  SPOT,
+            dai:      DAI,
             gem:      MKR,
             pair:     UNIV2_DAI_MKR_PAIR,
             receiver: PAUSE_PROXY,
@@ -105,7 +105,7 @@ contract SplitterMomTest is DssTest {
             want:            1e18,
             pip:             address(0),
             pair:            UNIV2_DAI_MKR_PAIR,
-            daiJoin:         DAI_JOIN,
+            dai:             DAI,
             splitter:        address(splitter),
             prevChainlogKey: "MCD_FLAP",
             chainlogKey:     "MCD_FLAP_LP"

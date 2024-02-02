@@ -126,8 +126,8 @@ contract SplitterTest is DssTest {
         flapper = FlapperUniV2SwapOnly(FlapperDeploy.deployFlapperUniV2({
             deployer: address(this),
             owner:    PAUSE_PROXY,
-            daiJoin:  DAI_JOIN,
             spotter:  SPOT,
+            dai:      DAI,
             gem:      MKR,
             pair:     UNIV2_DAI_MKR_PAIR,
             receiver: PAUSE_PROXY,
@@ -152,7 +152,7 @@ contract SplitterTest is DssTest {
             want:            WAD * 97 / 100,
             pip:             address(medianizer),
             pair:            UNIV2_DAI_MKR_PAIR,
-            daiJoin:         DAI_JOIN,
+            dai:             DAI,
             splitter:        address(splitter),
             prevChainlogKey: bytes32(0),
             chainlogKey:     "MCD_FLAP_BURN"

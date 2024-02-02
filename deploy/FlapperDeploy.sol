@@ -31,16 +31,16 @@ library FlapperDeploy {
     function deployFlapperUniV2(
         address deployer,
         address owner,
-        address daiJoin,
         address spotter,
+        address dai,
         address gem,
         address pair,
         address receiver,
         bool    swapOnly
     ) internal returns (address flapper) {
         flapper =
-            swapOnly ? address(new FlapperUniV2SwapOnly(daiJoin, spotter, gem, pair, receiver))
-                     : address(new FlapperUniV2(daiJoin, spotter, gem, pair, receiver))
+            swapOnly ? address(new FlapperUniV2SwapOnly(spotter, dai, gem, pair, receiver))
+                     : address(new FlapperUniV2(spotter, dai, gem, pair, receiver))
         ;
 
         ScriptTools.switchOwner(flapper, deployer, owner);

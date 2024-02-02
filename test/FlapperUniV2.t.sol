@@ -161,8 +161,8 @@ contract FlapperUniV2Test is DssTest {
         _flapper = FlapperUniV2(FlapperDeploy.deployFlapperUniV2({
             deployer: address(this),
             owner:    PAUSE_PROXY,
-            daiJoin:  DAI_JOIN,
             spotter:  SPOT,
+            dai:      DAI,
             gem:      gem,
             pair:     pair,
             receiver: PAUSE_PROXY,
@@ -175,7 +175,7 @@ contract FlapperUniV2Test is DssTest {
             want:            WAD * 97 / 100,
             pip:             address(_medianizer),
             pair:            pair,
-            daiJoin:         DAI_JOIN,
+            dai:             DAI,
             splitter:        address(splitter),
             prevChainlogKey: prevChainlogKey,
             chainlogKey:     "MCD_FLAP_LP"

@@ -16,15 +16,6 @@
 
 pragma solidity ^0.8.16;
 
-interface VatLike {
-    function hope(address) external;
-}
-
-interface DaiJoinLike {
-    function vat() external view returns (address);
-    function dai() external view returns (address);
-}
-
 interface SpotterLike {
     function par() external view returns (uint256);
 }
@@ -52,8 +43,6 @@ contract FlapperUniV2SwapOnly {
     uint256 public want;  // [WAD]        Relative multiplier of the reference price to insist on in the swap.
                           //              For example: 0.98 * WAD allows 2% worse price than the reference.
 
-    VatLike     public immutable vat;
-    DaiJoinLike public immutable daiJoin;
     SpotterLike public immutable spotter;
     address     public immutable dai;
     address     public immutable gem;
@@ -69,25 +58,21 @@ contract FlapperUniV2SwapOnly {
     event Exec(uint256 lot, uint256 bought);
 
     constructor(
-        address _daiJoin,
         address _spotter,
+        address _dai,
         address _gem,
         address _pair,
         address _receiver
     ) {
-        daiJoin = DaiJoinLike(_daiJoin);
-        vat     = VatLike(daiJoin.vat());
         spotter = SpotterLike(_spotter);
 
-        dai = daiJoin.dai();
+        dai = _dai;
         gem = _gem;
         require(GemLike(gem).decimals() == 18, "FlapperUniV2SwapOnly/gem-decimals-not-18");
 
         pair     = PairLike(_pair);
         daiFirst = pair.token0() == dai;
         receiver = _receiver;
-
-        vat.hope(address(daiJoin));
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
