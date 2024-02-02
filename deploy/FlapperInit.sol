@@ -87,6 +87,7 @@ struct SplitterConfig {
 
 library FlapperInit {
     uint256 constant WAD = 10 ** 18;
+    uint256 constant RAY = 10 ** 45;
 
     function initFlapperUniV2(
         DssInstance        memory dss,
@@ -143,6 +144,7 @@ library FlapperInit {
         require(mom.splitter()     == splitterInstance.splitter, "Mom splitter mismatch");
 
         require(cfg.hump > 0,         "hump too low");
+        require(cfg.bump % RAY == 0,  "bump not multiple of RAY");
         require(cfg.hop >= 5 minutes, "hop too low");
         require(cfg.burn <= WAD,      "burn too high");
 
