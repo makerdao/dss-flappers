@@ -37,11 +37,11 @@ interface FarmLike {
 
 contract Splitter {
     mapping (address => uint256) public wards;
-    FlapLike    public           flapper;
-    uint256     public           live; // Active Flag
-    uint256     public           burn; // [WAD]       Burn percentage. 1 WAD = funneling 100% to the burn engine
-    uint256     public           hop;  // [Seconds]   Time between kicks
-    uint256     public           zzz;  // [Timestamp] Last kick
+    uint256     public           live;    // Active Flag
+    FlapLike    public           flapper; // underlying burner strategy
+    uint256     public           burn;    // [WAD]       Burn percentage. 1 WAD = funneling 100% to the burn engine
+    uint256     public           hop;     // [Seconds]   Time between kicks
+    uint256     public           zzz;     // [Timestamp] Last kick
 
     VatLike     public immutable vat;
     DaiJoinLike public immutable daiJoin;
