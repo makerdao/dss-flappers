@@ -37,7 +37,6 @@ interface FarmLike {
 
 contract Splitter {
     mapping (address => uint256) public wards;
-    uint256     public           live;    // Active Flag
     FlapLike    public           flapper; // Underlying burner strategy
     uint256     public           burn;    // [WAD]       Burn percentage. 1 WAD = funneling 100% to the burn engine
     uint256     public           hop;     // [Seconds]   Time between kicks
@@ -68,8 +67,6 @@ contract Splitter {
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
-
-        live = 1;
     }
 
     modifier auth {
@@ -97,8 +94,6 @@ contract Splitter {
     }
 
     function kick(uint256 tot, uint256) external auth returns (uint256) {
-        require(live == 1, "Splitter/not-live");
-
         require(block.timestamp >= zzz + hop, "Splitter/kicked-too-soon");
         zzz = block.timestamp;
 
@@ -121,7 +116,7 @@ contract Splitter {
     }
 
     function cage(uint256) external auth {
-        live = 0;
+        hop = type(uint256).max;
         emit Cage(0);
     }
 }

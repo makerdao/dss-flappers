@@ -17,7 +17,7 @@
 pragma solidity ^0.8.16;
 
 interface SplitterLike {
-    function file(bytes32, uint256) external;
+    function cage(uint256) external;
 }
 
 interface AuthorityLike {
@@ -77,7 +77,7 @@ contract SplitterMom {
 
     // Governance action without delay
     function stop() external auth {
-        splitter.file("hop", type(uint256).max);
+        splitter.cage(0);
         emit Stop();
     }
 }

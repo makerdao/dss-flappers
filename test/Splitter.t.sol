@@ -296,7 +296,6 @@ contract SplitterTest is DssTest {
         assertEq(address(s.vat()), address(vat));
         assertEq(address(s.farm()), address(0xfff));
         assertEq(s.wards(address(this)), 1);
-        assertEq(s.live(), 1);
     }
 
     function testAuth() public {
@@ -357,34 +356,9 @@ contract SplitterTest is DssTest {
         vow.flap();
     }
 
-    function testKickAfterStoppedWithHop() public {
-        uint256 initialHop = splitter.hop();
-
-        doKick();
-        vm.warp(block.timestamp + splitter.hop());
-
-        // make sure the slippage of the first kick doesn't block us
-        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
-        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
-
-        vm.prank(PAUSE_PROXY); splitter.file("hop", type(uint256).max);
-        vm.expectRevert(bytes(abi.encodeWithSignature("Panic(uint256)", 0x11))); // arithmetic error
-        vow.flap();
-
-        vm.prank(PAUSE_PROXY); splitter.file("hop", initialHop);
-        vow.flap();
-    }
-
     function testKickFlapperNotSet() public {
         vm.prank(PAUSE_PROXY); splitter.file("flapper", address(0));
         vm.expectRevert(bytes(""));
-        vow.flap();
-    }
-
-    function testKickNotLive() public {
-        vm.prank(PAUSE_PROXY); splitter.cage(0);
-        assertEq(splitter.live(), 0);
-        vm.expectRevert("Splitter/not-live");
         vow.flap();
     }
 
@@ -429,28 +403,48 @@ contract SplitterTest is DssTest {
     }
 
     function testCage() public {
-        assertEq(splitter.live(), 1);
+        uint256 initialHop = splitter.hop();
+        assertLt(initialHop, type(uint256).max);
+        doKick();
+        vm.warp(block.timestamp + splitter.hop());
+        // make sure the slippage of the first kick doesn't block us
+        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
+        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
 
         vm.expectEmit(false, false, false, true);
         emit Cage(0);
         vm.prank(PAUSE_PROXY); splitter.cage(0);
 
-        assertEq(splitter.live(), 0);
-        
-        vm.expectRevert("Splitter/not-live");
+        assertEq(splitter.hop(), type(uint256).max);
+        vm.expectRevert(bytes(abi.encodeWithSignature("Panic(uint256)", 0x11))); // arithmetic error
+        vow.flap();
+
+        vm.prank(PAUSE_PROXY); splitter.file("hop", initialHop);
+
+        assertEq(splitter.hop(), initialHop);
         vow.flap();
     }
 
     function testCageThroughEnd() public {
-        assertEq(splitter.live(), 1);
+        uint256 initialHop = splitter.hop();
+        assertLt(initialHop, type(uint256).max);
+        doKick();
+        vm.warp(block.timestamp + splitter.hop());
+        // make sure the slippage of the first kick doesn't block us
+        uint256 _marginalWant = marginalWant(MKR, address(medianizer));
+        vm.prank(PAUSE_PROXY); flapper.file("want", _marginalWant * 99 / 100);
 
         vm.expectEmit(false, false, false, true);
         emit Cage(0);
         vm.prank(PAUSE_PROXY); end.cage();
 
-        assertEq(splitter.live(), 0);
+        assertEq(splitter.hop(), type(uint256).max);
+        vm.expectRevert(bytes(abi.encodeWithSignature("Panic(uint256)", 0x11))); // arithmetic error
+        vow.flap();
 
-        vm.expectRevert("Splitter/not-live");
+        vm.prank(PAUSE_PROXY); splitter.file("hop", initialHop);
+
+        assertEq(splitter.hop(), initialHop);
         vow.flap();
     }
 }
