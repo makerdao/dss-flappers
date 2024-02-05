@@ -49,6 +49,10 @@ interface PairLike {
     function token1() external view returns (address);
 }
 
+interface DaiJoinLike {
+    function dai() external view returns (address);
+}
+
 interface SplitterLike {
     function vat() external view returns (address);
     function daiJoin() external view returns (address);
@@ -59,6 +63,7 @@ interface SplitterLike {
 }
 
 interface FarmLike {
+    function rewardsToken() external view returns (address);
     function setRewardsDistribution(address) external;
     function setRewardsDuration(uint256) external;
 }
@@ -136,12 +141,14 @@ library FlapperInit {
     ) internal {
         SplitterLike    splitter = SplitterLike(splitterInstance.splitter);
         SplitterMomLike mom      = SplitterMomLike(splitterInstance.mom);
+        FarmLike        farm     = FarmLike(cfg.farm);
 
         // Sanity checks
-        require(splitter.vat()     == address(dss.vat),          "Splitter vat mismatch");
-        require(splitter.daiJoin() == cfg.daiJoin,               "Splitter daiJoin mismatch");
-        require(splitter.farm()    == cfg.farm,                  "Splitter farm mismatch");
-        require(mom.splitter()     == splitterInstance.splitter, "Mom splitter mismatch");
+        require(splitter.vat()      == address(dss.vat),               "Splitter vat mismatch");
+        require(splitter.daiJoin()  == cfg.daiJoin,                    "Splitter daiJoin mismatch");
+        require(splitter.farm()     == cfg.farm,                       "Splitter farm mismatch");
+        require(mom.splitter()      == splitterInstance.splitter,      "Mom splitter mismatch");
+        require(farm.rewardsToken() == DaiJoinLike(cfg.daiJoin).dai(), "Farm rewards not dai");
 
         require(cfg.hump > 0,         "hump too low");
         require(cfg.bump % RAY == 0,  "bump not multiple of RAY");
@@ -153,7 +160,6 @@ library FlapperInit {
         splitter.rely(address(mom));
         splitter.rely(address(dss.vow));
 
-        FarmLike farm = FarmLike(cfg.farm);
         farm.setRewardsDistribution(splitterInstance.splitter);
         farm.setRewardsDuration(cfg.hop);
 
