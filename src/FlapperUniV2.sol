@@ -79,7 +79,6 @@ contract FlapperUniV2 {
         daiFirst = pair.token0() == dai;
         receiver = _receiver;
 
-
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
 
