@@ -68,7 +68,7 @@ contract OracleWrapperTest is Test {
         // Emulate spell
         DssInstance memory dss = MCD.loadFromChainlog(LOG);
         vm.startPrank(PAUSE_PROXY);
-        FlapperInit.initOracleWrapper(dss, address(oracleWrapper), "ORACLE_WRAPPER");
+        FlapperInit.initOracleWrapper(dss, address(oracleWrapper), 1800, "ORACLE_WRAPPER");
         vm.stopPrank();
     }
 

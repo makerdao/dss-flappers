@@ -38,6 +38,7 @@ interface SplitterMomLike {
 
 interface OracleWrapperLike {
     function pip() external view returns (address);
+    function divisor() external view returns (uint256);
 }
 
 interface PipLike {
@@ -129,9 +130,16 @@ library FlapperInit {
         PipLike(FlapperUniV2Like(flapper).pip()).kiss(flapper);
     }
 
-    function initOracleWrapper(DssInstance memory dss, address wrapper, bytes32 clKey) internal {
-        PipLike(OracleWrapperLike(wrapper).pip()).kiss(wrapper);
-        dss.chainlog.setAddress(clKey, wrapper);
+    function initOracleWrapper(
+        DssInstance memory dss,
+        address wrapper_,
+        uint256 divisor,
+        bytes32 clKey
+    ) internal {
+        OracleWrapperLike wrapper = OracleWrapperLike(wrapper_);
+        require(wrapper.divisor() == divisor, "Wrapper divisor mismatch"); // Sanity check
+        PipLike(wrapper.pip()).kiss(wrapper_);
+        dss.chainlog.setAddress(clKey, wrapper_);
     }
 
     function initSplitter(        
