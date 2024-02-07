@@ -20,13 +20,12 @@ import { DssInstance } from "dss-test/MCD.sol";
 import { SplitterInstance } from "./SplitterInstance.sol";
 
 interface FlapperUniV2Like {
-    function vat() external view returns (address);
-    function daiJoin() external view returns (address);
-    function spotter() external view returns (address);
     function pip() external view returns (address);
-    function pair() external view returns (address);
+    function spotter() external view returns (address);
+    function dai() external view returns (address);
     function gem() external view returns (address);
     function receiver() external view returns (address);
+    function pair() external view returns (address);
     function rely(address) external;
     function file(bytes32, uint256) external;
     function file(bytes32, address) external;
@@ -39,6 +38,7 @@ interface SplitterMomLike {
 
 interface OracleWrapperLike {
     function pip() external view returns (address);
+    function divisor() external view returns (uint256);
 }
 
 interface PipLike {
@@ -55,6 +55,7 @@ interface DaiJoinLike {
 }
 
 interface SplitterLike {
+    function live() external view returns (uint256);
     function vat() external view returns (address);
     function daiJoin() external view returns (address);
     function farm() external view returns (address);
@@ -64,6 +65,7 @@ interface SplitterLike {
 }
 
 interface FarmLike {
+    function rewardsToken() external view returns (address);
     function setRewardsDistribution(address) external;
     function setRewardsDuration(uint256) external;
 }
@@ -72,7 +74,7 @@ struct FlapperUniV2Config {
     uint256 want;
     address pip;
     address pair;
-    address daiJoin;
+    address dai;
     address splitter;
     bytes32 prevChainlogKey;
     bytes32 chainlogKey;
@@ -92,6 +94,7 @@ struct SplitterConfig {
 
 library FlapperInit {
     uint256 constant WAD = 10 ** 18;
+    uint256 constant RAY = 10 ** 27;
 
     function initFlapperUniV2(
         DssInstance        memory dss,
@@ -101,17 +104,15 @@ library FlapperInit {
         FlapperUniV2Like flapper = FlapperUniV2Like(flapper_);
 
         // Sanity checks
-        require(flapper.vat()      == address(dss.vat),                           "Flapper vat mismatch");
-        require(flapper.daiJoin()  == cfg.daiJoin,                                "Flapper daiJoin mismatch");
         require(flapper.spotter()  == address(dss.spotter),                       "Flapper spotter mismatch");
+        require(flapper.dai()      == cfg.dai,                                    "Flapper dai mismatch");
         require(flapper.pair()     == cfg.pair,                                   "Flapper pair mismatch");
         require(flapper.receiver() == dss.chainlog.getAddress("MCD_PAUSE_PROXY"), "Flapper receiver mismatch");
 
         PairLike pair = PairLike(flapper.pair());
-        address  dai  = DaiJoinLike(cfg.daiJoin).dai();
-        (address pairDai, address pairGem) = pair.token0() == dai ? (pair.token0(), pair.token1())
-                                                                  : (pair.token1(), pair.token0());
-        require(pairDai == dai,           "Dai mismatch");
+        (address pairDai, address pairGem) = pair.token0() == cfg.dai ? (pair.token0(), pair.token1())
+                                                                      : (pair.token1(), pair.token0());
+        require(pairDai == cfg.dai,       "Dai mismatch");
         require(pairGem == flapper.gem(), "Gem mismatch");
 
         require(cfg.want >= WAD * 90 / 100, "want too low");
@@ -130,9 +131,16 @@ library FlapperInit {
         PipLike(FlapperUniV2Like(flapper).pip()).kiss(flapper);
     }
 
-    function initOracleWrapper(DssInstance memory dss, address wrapper, bytes32 clKey) internal {
-        PipLike(OracleWrapperLike(wrapper).pip()).kiss(wrapper);
-        dss.chainlog.setAddress(clKey, wrapper);
+    function initOracleWrapper(
+        DssInstance memory dss,
+        address wrapper_,
+        uint256 divisor,
+        bytes32 clKey
+    ) internal {
+        OracleWrapperLike wrapper = OracleWrapperLike(wrapper_);
+        require(wrapper.divisor() == divisor, "Wrapper divisor mismatch"); // Sanity check
+        PipLike(wrapper.pip()).kiss(wrapper_);
+        dss.chainlog.setAddress(clKey, wrapper_);
     }
 
     function initSplitter(        
@@ -142,14 +150,18 @@ library FlapperInit {
     ) internal {
         SplitterLike    splitter = SplitterLike(splitterInstance.splitter);
         SplitterMomLike mom      = SplitterMomLike(splitterInstance.mom);
+        FarmLike        farm     = FarmLike(cfg.farm);
 
         // Sanity checks
-        require(splitter.vat()     == address(dss.vat),          "Splitter vat mismatch");
-        require(splitter.daiJoin() == cfg.daiJoin,               "Splitter daiJoin mismatch");
-        require(splitter.farm()    == cfg.farm,                  "Splitter farm mismatch");
-        require(mom.splitter()     == splitterInstance.splitter, "Mom splitter mismatch");
+        require(splitter.live()     == 1,                              "Splitter not live");
+        require(splitter.vat()      == address(dss.vat),               "Splitter vat mismatch");
+        require(splitter.daiJoin()  == cfg.daiJoin,                    "Splitter daiJoin mismatch");
+        require(splitter.farm()     == cfg.farm,                       "Splitter farm mismatch");
+        require(mom.splitter()      == splitterInstance.splitter,      "Mom splitter mismatch");
+        require(farm.rewardsToken() == DaiJoinLike(cfg.daiJoin).dai(), "Farm rewards not dai");
 
         require(cfg.hump > 0,         "hump too low");
+        require(cfg.bump % RAY == 0,  "bump not multiple of RAY");
         require(cfg.hop >= 5 minutes, "hop too low");
         require(cfg.burn <= WAD,      "burn too high");
 
@@ -158,7 +170,6 @@ library FlapperInit {
         splitter.rely(address(mom));
         splitter.rely(address(dss.vow));
 
-        FarmLike farm = FarmLike(cfg.farm);
         farm.setRewardsDistribution(splitterInstance.splitter);
         farm.setRewardsDuration(cfg.hop);
 

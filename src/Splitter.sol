@@ -37,10 +37,11 @@ interface FarmLike {
 
 contract Splitter {
     mapping (address => uint256) public wards;
-    FlapLike    public           flapper;
-    uint256     public           burn; // [WAD]       Burn percentage. 1 WAD = funneling 100% to the burn engine
-    uint256     public           hop;  // [Seconds]   Time between kicks
-    uint256     public           zzz;  // [Timestamp] Last kick
+    uint256     public           live;    // Active Flag
+    FlapLike    public           flapper; // Underlying burner strategy
+    uint256     public           burn;    // [WAD]       Burn percentage. 1 WAD = funneling 100% to the burn engine
+    uint256     public           hop;     // [Seconds]   Time between kicks
+    uint256     public           zzz;     // [Timestamp] Last kick
 
     VatLike     public immutable vat;
     DaiJoinLike public immutable daiJoin;
@@ -51,6 +52,7 @@ contract Splitter {
     event File(bytes32 indexed what, uint256 data);
     event File(bytes32 indexed what, address data);
     event Kick(uint256 tot, uint256 lot, uint256 pay);
+    event Cage(uint256 rad);
 
     constructor(
         address _daiJoin,
@@ -66,6 +68,8 @@ contract Splitter {
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
+
+        live = 1;
     }
 
     modifier auth {
@@ -93,6 +97,8 @@ contract Splitter {
     }
 
     function kick(uint256 tot, uint256) external auth returns (uint256) {
+        require(live == 1, "Splitter/not-live");
+
         require(block.timestamp >= zzz + hop, "Splitter/kicked-too-soon");
         zzz = block.timestamp;
 
@@ -115,6 +121,7 @@ contract Splitter {
     }
 
     function cage(uint256) external auth {
-        FlapLike(flapper).cage();
+        live = 0;
+        emit Cage(0);
     }
 }

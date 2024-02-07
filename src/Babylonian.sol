@@ -40,7 +40,7 @@ library Babylonian {
                 xx >>= 4;
                 r <<= 2;
             }
-            if (xx >= 0x8) {
+            if (xx >= 0x4) {
                 r <<= 1;
             }
             r = (r + x / r) >> 1;

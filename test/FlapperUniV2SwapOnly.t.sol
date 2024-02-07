@@ -45,10 +45,6 @@ interface VowLike {
     function hump() external view returns (uint256);
 }
 
-interface EndLike {
-    function cage() external;
-}
-
 interface SpotterLike {
     function par() external view returns (uint256);
 }
@@ -100,7 +96,6 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
     address     PAUSE_PROXY;
     VatLike     vat;
     VowLike     vow;
-    EndLike     end;
     SpotterLike spotter;
 
     address constant LOG                 = 0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F;
@@ -110,7 +105,6 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
     address constant UNIV2_LINK_DAI_PAIR = 0x6D4fd456eDecA58Cf53A8b586cd50754547DBDB2;
 
     event Exec(uint256 lot, uint256 bought);
-    event Cage();
 
     function setUp() public {
         vm.createSelectFork(vm.envString("ETH_RPC_URL"));
@@ -124,7 +118,6 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         PAUSE_PROXY   = ChainlogLike(LOG).getAddress("MCD_PAUSE_PROXY");
         vat           = VatLike(ChainlogLike(LOG).getAddress("MCD_VAT"));
         vow           = VowLike(ChainlogLike(LOG).getAddress("MCD_VOW"));
-        end           = EndLike(ChainlogLike(LOG).getAddress("MCD_END"));
         spotter       = SpotterLike(ChainlogLike(LOG).getAddress("MCD_SPOT"));
 
         splitter = new SplitterMock(DAI_JOIN);
@@ -166,8 +159,8 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         _flapper = FlapperUniV2SwapOnly(FlapperDeploy.deployFlapperUniV2({
             deployer: address(this),
             owner:    PAUSE_PROXY,
-            daiJoin:  DAI_JOIN,
             spotter:  SPOT,
+            dai:      DAI,
             gem:      gem,
             pair:     pair,
             receiver: PAUSE_PROXY,
@@ -180,7 +173,7 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
             want:            WAD * 97 / 100,
             pip:             address(_medianizer),
             pair:            pair,
-            daiJoin:         DAI_JOIN,
+            dai:             DAI,
             splitter:        address(splitter),
             prevChainlogKey: bytes32(0),
             chainlogKey:     "MCD_FLAP_BURN"
@@ -281,7 +274,6 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
     function testDefaultValues() public {
         FlapperUniV2SwapOnly f = new FlapperUniV2SwapOnly(DAI_JOIN, SPOT, MKR, UNIV2_DAI_MKR_PAIR, PAUSE_PROXY);
         assertEq(f.want(), WAD);
-        assertEq(f.live(), 1);
         assertEq(f.wards(address(this)), 1);
     }
 
@@ -298,8 +290,7 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         assert(flapper.wards(address(this)) == 0);
 
         checkModifier(address(flapper), string(abi.encodePacked("FlapperUniV2SwapOnly", "/not-authorized")), [
-            FlapperUniV2SwapOnly.exec.selector,
-            FlapperUniV2SwapOnly.cage.selector
+            FlapperUniV2SwapOnly.exec.selector
         ]);
     }
 
@@ -341,13 +332,6 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         vow.flap();
     }
 
-    function testExecNotLive() public {
-        vm.prank(PAUSE_PROXY); flapper.cage();
-        assertEq(flapper.live(), 0);
-        vm.expectRevert("FlapperUniV2SwapOnly/not-live");
-        vow.flap();
-    }
-
     function testExecDonationDai() public {
         deal(DAI, UNIV2_DAI_MKR_PAIR, GemLike(DAI).balanceOf(UNIV2_DAI_MKR_PAIR) * 1005 / 1000);
         // This will now sync the reserves before the swap
@@ -358,21 +342,5 @@ contract FlapperUniV2SwapOnlyTest is DssTest {
         deal(MKR, UNIV2_DAI_MKR_PAIR, GemLike(MKR).balanceOf(UNIV2_DAI_MKR_PAIR) * 1005 / 1000);
         // This will now sync the reserves before the swap
         doExec(address(flapper), MKR, UNIV2_DAI_MKR_PAIR);
-    }
-
-    function testCage() public {
-        assertEq(flapper.live(), 1);
-        vm.expectEmit(false, false, false, true);
-        emit Cage();
-        vm.prank(PAUSE_PROXY); flapper.cage();
-        assertEq(flapper.live(), 0);
-    }
-
-    function testCageThroughEnd() public {
-        assertEq(flapper.live(), 1);
-        vm.expectEmit(false, false, false, true, address(flapper));
-        emit Cage();
-        vm.prank(PAUSE_PROXY); end.cage();
-        assertEq(flapper.live(), 0);
     }
 }

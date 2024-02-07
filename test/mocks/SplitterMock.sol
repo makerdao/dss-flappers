@@ -14,7 +14,6 @@ interface DaiJoinLike {
 
 interface FlapLike {
     function exec(uint256) external;
-    function cage() external;
 }
 
 contract SplitterMock {
@@ -45,9 +44,5 @@ contract SplitterMock {
         DaiJoinLike(daiJoin).exit(address(flapper), lot);
         flapper.exec(lot);
         return 0;
-    }
-
-    function cage(uint256) external {
-        FlapLike(flapper).cage();
     }
 }

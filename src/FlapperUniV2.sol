@@ -18,15 +18,6 @@ pragma solidity ^0.8.16;
 
 import { Babylonian } from "src/Babylonian.sol";
 
-interface VatLike {
-    function hope(address) external;
-}
-
-interface DaiJoinLike {
-    function vat() external view returns (address);
-    function dai() external view returns (address);
-}
-
 interface SpotterLike {
     function par() external view returns (uint256);
 }
@@ -53,13 +44,10 @@ interface PairLike {
 contract FlapperUniV2 {
     mapping (address => uint256) public wards;
 
-    uint256 public live;  // Active Flag
     PipLike public pip;   // Reference price oracle
     uint256 public want;  // [WAD]        Relative multiplier of the reference price to insist on in the swap.
                           //              For example: 0.98 * WAD allows 2% worse price than the reference.
 
-    VatLike     public immutable vat;
-    DaiJoinLike public immutable daiJoin;
     SpotterLike public immutable spotter;
     address     public immutable dai;
     address     public immutable gem;
@@ -73,20 +61,17 @@ contract FlapperUniV2 {
     event File(bytes32 indexed what, uint256 data);
     event File(bytes32 indexed what, address data);
     event Exec(uint256 lot, uint256 sell, uint256 buy, uint256 liquidity);
-    event Cage();
 
     constructor(
-        address _daiJoin,
         address _spotter,
+        address _dai,
         address _gem,
         address _pair,
         address _receiver
     ) {
-        daiJoin = DaiJoinLike(_daiJoin);
-        vat     = VatLike(daiJoin.vat());
         spotter = SpotterLike(_spotter);
 
-        dai = daiJoin.dai();
+        dai = _dai;
         gem = _gem;
         require(GemLike(gem).decimals() == 18, "FlapperUniV2/gem-decimals-not-18");
 
@@ -94,14 +79,10 @@ contract FlapperUniV2 {
         daiFirst = pair.token0() == dai;
         receiver = _receiver;
 
-        vat.hope(address(daiJoin));
-
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
 
         want = WAD; // Initial value for safety
-
-        live = 1;
     }
 
     modifier auth {
@@ -158,8 +139,6 @@ contract FlapperUniV2 {
     }
 
     function exec(uint256 lot) external auth {
-        require(live == 1, "FlapperUniV2/not-live");
-
         // Check Amounts
         (uint256 _reserveDai, uint256 _reserveGem) = _getReserves();
 
@@ -182,10 +161,5 @@ contract FlapperUniV2 {
         //
 
         emit Exec(lot, _sell, _buy, _liquidity);
-    }
-
-    function cage() external auth {
-        live = 0;
-        emit Cage();
     }
 }
