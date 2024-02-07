@@ -55,7 +55,6 @@ interface DaiJoinLike {
 }
 
 interface SplitterLike {
-    function live() external view returns (uint256);
     function vat() external view returns (address);
     function daiJoin() external view returns (address);
     function farm() external view returns (address);
@@ -153,7 +152,6 @@ library FlapperInit {
         FarmLike        farm     = FarmLike(cfg.farm);
 
         // Sanity checks
-        require(splitter.live()     == 1,                              "Splitter not live");
         require(splitter.vat()      == address(dss.vat),               "Splitter vat mismatch");
         require(splitter.daiJoin()  == cfg.daiJoin,                    "Splitter daiJoin mismatch");
         require(splitter.farm()     == cfg.farm,                       "Splitter farm mismatch");
